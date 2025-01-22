@@ -1,5 +1,4 @@
 import numpy as np
-
 PI = np.pi
 IMAG = 1j
 

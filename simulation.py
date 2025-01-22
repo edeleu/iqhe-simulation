@@ -1,10 +1,10 @@
 import numpy as np
-import matplotlib.pyplot as plt
 import csv
-import precompute
 import timeit
 from numba import njit, prange, jit
-import scipy
+
+import precompute
+import helpers
 
 # Define system-wide parameters...
 # num-states is defined according to the ratio  
@@ -12,16 +12,16 @@ import scipy
 # N = A / (2pi ell^2)=> so L^2 = 2pi*ell^2*N
 # for ell^2 = hbar c / (e*B)
 
-PI = np.pi
-NUM_STATES = 256
-NUM_THETA=26
 IMAG = 1j
+PI = np.pi
+
+NUM_STATES = 16     # Number of states for the system
+NUM_THETA=26        # Number of theta for the THETA x,y mesh
 POTENTIAL_MATRIX_SIZE = int(4*np.sqrt(NUM_STATES))
 # basically experimental parameter, complete more testing with this size... (keep L/M small)
 
 # Precompute look-up tables (matrices) for Hamiltonian exponentials
 mn_LUT, mj_LUT, mTheta_LUT = precompute.precompute_exponentialsNumPy(NUM_STATES, POTENTIAL_MATRIX_SIZE, NUM_THETA)
-
 
 # Construct the Hamiltonian Matrix for a given Theta, Num_States, and random-potential.
 # note: "theta" is actually an index here for efficiency
@@ -123,7 +123,7 @@ def constructScatteringPotentialv1(size):
 
 # method of constructing potential as in 2019 paper
 def constructScatteringPotentialv2(size):
-    totalScatterers = 16*NUM_STATES
+    totalScatterers = 20*NUM_STATES
     # first pull numScatterers random xy locations and intensities
     L = np.sqrt(2*PI*NUM_STATES) # take ell^2 =1
     deltaQ = 2*PI/L
@@ -177,7 +177,8 @@ def fullSimulationGrid(thetaResolution=10,visualize=False):
             eigs, eigv = np.linalg.eigh(H,UPLO="L")
             # eigs, eigv = scipy.linalg.eigh(H,driver="evd")
 
-            eigGrid[indexONE,indexTWO]=[thetas[indexONE],thetas[indexTWO],eigs]
+            # eigGrid[indexONE,indexTWO]=[thetas[indexONE],thetas[indexTWO],eigs]
+            eigGrid[indexONE,indexTWO]=[thetas[indexONE],thetas[indexTWO],eigs]   
             eigValueGrid[indexONE,indexTWO]=eigv
 
     cherns=[]
@@ -193,36 +194,9 @@ def fullSimulationGrid(thetaResolution=10,visualize=False):
     if visualize:
         print(cherns)
         print("Sum",sum(cherns))
-        plotEigenvalueMeshHelper(eigGrid,thetas,thetaResolution)
+        helpers.plotEigenvalueMeshHelper(eigGrid,thetaResolution,NUM_STATES)
 
     return cherns
-
-# Helper function to plot in 3D the eigenvalues for a grid of theta_x, theta_y
-def plotEigenvalueMeshHelper(grid,thetas,thetaResolution):
-    import matplotlib.pyplot as plt
-    from mpl_toolkits.mplot3d import Axes3D
-    import random
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
-
-    colors = [tuple(random.random() for _ in range(3)) for _ in range(NUM_STATES)]  # Random RGB colors
-
-    # Plot each surface for each index of valueArray
-    for idx,color in enumerate(colors):  # Assuming valueArray has 3 elements
-        # Prepare data for this surface (x, y, valueArray[idx])
-        X, Y = np.meshgrid(thetas, thetas)
-        Z = np.array([[grid[i, j][2][idx] for j in range(thetaResolution)] for i in range(thetaResolution)])
-
-        # Plot the surface
-        ax.plot_surface(X, Y, Z, color=color, edgecolor='none', alpha=1.0)
-
-    # Set labels
-    ax.set_xlabel('X')
-    ax.set_ylabel('Y')
-    ax.set_zlabel('Z')
-
-    # Show the plot
-    plt.show()
 
 def computeChernGridV2(stateNumber,grid,delTheta,thetaNUM):
     accumulator = 0
@@ -290,12 +264,13 @@ def timing():
     print(f"Execution time: {time} seconds")
     print("Time per Call:", time/NUM)
 
-if __name__ == "__main__":
-    # fullSimulationGrid(NUM_THETA,visualize=True)
 
-    V = constructPotential(POTENTIAL_MATRIX_SIZE)
-    constructHamiltonian(256,3,7,V)
-    timing()
+if __name__ == "__main__":
+    fullSimulationGrid(NUM_THETA,visualize=True)
+
+    # V = constructPotential(POTENTIAL_MATRIX_SIZE)
+    # constructHamiltonian(256,3,7,V)
+    # timing()
 
     # Comment the following lines for running an ensemble!
     # csv_file = "/scratch/gpfs/ed5754/iqheFiles/output.csv"
@@ -304,16 +279,8 @@ if __name__ == "__main__":
 
 
     # Following lines are for visualizing the V_mn potential strength, translated back to real space!
-    # pot = constructPotential(10)
-    # pot= constructScatteringPotentialv2(10)
-    # shifted = np.fft.ifftshift(pot)
-    # real = np.fft.ifft2(shifted).real
-
-    # plt.figure(figsize=(8, 6))
-    # plt.imshow(real, extent=[0, real.shape[1], 0, real.shape[0]],
-    #            origin='lower', cmap='inferno')
-    # plt.colorbar(label="Magnitude of Real-Space Potential")
-    # plt.title("Gaussian White Noise Potential in Real Space")
-    # plt.xlabel("x")
-    # plt.ylabel("y")
-    # plt.show()
+    
+    # pot = constructPotential(POTENTIAL_MATRIX_SIZE)
+    # pot = constructScatteringPotentialv2(POTENTIAL_MATRIX_SIZE)
+    # helpers.plotRandomPotential(pot)
+    # helpers.plotRandomPotential3D(pot)
