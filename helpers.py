@@ -55,6 +55,8 @@ def plotEigenvalueMeshHelper(grid,numTheta,N):
 
     plt.show()
 
+## TODO: make eigenvalueMeshHelper accept chern-numbers to colorcode the states!
+
 # Accepts "centered" V_mn coefficients and plots the corresponding real potential 
 def plotRandomPotential(inverse_potential):
     # must shift coefficients to corner from centered-spectrum
