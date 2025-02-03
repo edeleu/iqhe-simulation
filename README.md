@@ -4,8 +4,9 @@ A numerical study of the lowest Landau level, simulating a 2D system under high 
 
 Guide of Files:
 - Simulation.py: Main entry point to running simulations or ensembles and saving chern numbers.
-- Simulation_GPU.py: The same simulation code, with some modifications to allow for speed-ups using GPU for linear algebra
+- Simulation_GPU.py: The same simulation code, with some modifications to allow for speed-ups using GPU for linear algebra.
 - Helpers.py: Some helper functions for plotting, modifying eigenvectors, etc.
-- precompute.py: A helper file to precompute common exponentials when using a fixed theta-resolution for improved efficiency
-- AutoConverve.py: A file utilizing binary-search to find the theta-resolution where chern numbers converge
+- precompute.py: A helper file to precompute common exponentials when using a fixed theta-resolution for improved efficiency.
+- AutoConverve.py: A file utilizing binary-search to find the theta-resolution where chern numbers converge.
+    - autoThetaConvergenceChecker.py: An earlier version for this convergence testing using a linear search and slightly different criteria.
 - viewMismatch.py: A file for viewing surfaces of eigenvalues where mismatching chern-numbers occur (due to insufficient theta-resolution).
