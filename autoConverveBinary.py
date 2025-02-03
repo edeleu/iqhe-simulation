@@ -255,22 +255,31 @@ def run_convergence_trials(max_resolution=50, min_resolution=5, step=2, num_tria
         print(f"Trial {trial} results saved to {save_path}")
 
 def highlight_mismatches(reference, current):
-    """Returns a formatted string with mismatched values marked in place.
+    """Identifies and formats mismatches while printing mismatch indices.
     
-    Mismatches will be highlighted with a '*' and the original value will be shown in parentheses.
+    - Mismatched values are highlighted with '*' and the reference value is shown in brackets.
+    - Prints mismatch indices (0-based) for debugging.
+    
+    Returns:
+        formatted_output (str): String representation of mismatches.
+        mismatch_indices (list): List of mismatch indices.
     """
     formatted_output = []
-    
-    for ref_val, cur_val in zip(reference, current):
-        # Check if values match
+    mismatch_indices = []
+
+    for idx, (ref_val, cur_val) in enumerate(zip(reference, current)):
         if np.isclose(ref_val, cur_val):
             formatted_output.append(str(cur_val))  # Value matches, no special marker
         else:
-            # Value mismatch, mark it with "*" and show the original reference value
-            formatted_output.append(f"{cur_val}* [REF: {ref_val}]")
-    
+            mismatch_indices.append(idx)  # Store the mismatch index
+            formatted_output.append(f"{cur_val}* [REF: {ref_val}]")  # Highlight mismatch
+
+    # Print mismatch indices
+    if mismatch_indices:
+        print(f"⚠️ Mismatch found at indices: {mismatch_indices}")
+
     # Join the formatted values into a single string for output
-    return ", ".join(formatted_output)
+    return ", ".join(formatted_output), mismatch_indices
 
 def save_to_csv(trial_number, converged_resolution, min_eigenvalue_spacing00, min_eigenvalue_spacingPIPI, min_eigenvalue_spacing_reference, min_eigenvalue_spacing_converged, filename="chern_data.csv"):
     # Check if the file already exists
