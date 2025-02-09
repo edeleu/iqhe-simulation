@@ -4,6 +4,7 @@ import csv, os
 from numba import njit, prange, jit
 import matplotlib.pyplot as plt
 import random
+import helpers
 
 # Define system-wide parameters...
 # num-states is defined according to the ratio  
@@ -15,7 +16,7 @@ IMAG = 1j
 PI = np.pi
 
 NUM_STATES = 64     # Number of states for the system
-NUM_THETA=26        # Number of theta for the THETA x,y mesh
+# NUM_THETA=26        # Number of theta for the THETA x,y mesh
 POTENTIAL_MATRIX_SIZE = int(4*np.sqrt(NUM_STATES))
 # basically experimental parameter, complete more testing with this size... (keep L/M small)
 
@@ -85,53 +86,120 @@ def fullSimulationGrid(V, thetaResolution=10,visualize=False):
 
     # return cherns
 
-def plotEigenvalueMeshHelper(grid, numTheta, N, mismatch_indices=None):
-    """
-    Plots the 8 eigenvalue surfaces nearest to mismatches, highlighting mismatches in RED.
+
+@njit(parallel=True)
+def computeChernGridV2_vectorized(grid, thetaNUM):
+    accumulator = np.zeros(NUM_STATES)  # Accumulator for each state
+
+    for indexONE in prange(thetaNUM - 1):
+        for indexTWO in range(thetaNUM - 1):
+            # Extract eigenvectors for all states at once
+            currentEigv00 = grid[indexONE, indexTWO]  # Shape: (num_components, num_states)
+            currentEigv10 = grid[indexONE + 1, indexTWO]
+            currentEigv01 = grid[indexONE, indexTWO + 1]
+            currentEigv11 = grid[indexONE + 1, indexTWO + 1]
+
+            # Compute inner products for all states simultaneously, sum over components-axis
+            innerProductOne = np.sum(np.conj(currentEigv00) * currentEigv10, axis=0)
+            innerProductTwo = np.sum(np.conj(currentEigv10) * currentEigv11, axis=0)
+            innerProductThree = np.sum(np.conj(currentEigv11) * currentEigv01, axis=0)
+            innerProductFour = np.sum(np.conj(currentEigv01) * currentEigv00, axis=0)
+
+            # Compute Berry phase for all states concurrently
+                # standard log approach
+            # berryPhase = np.log(innerProductOne*innerProductTwo*innerProductThree*innerProductFour).imag
+
+                # angle method is slightly better (?)
+            # berryPhase = (
+            #     np.angle(innerProductOne)
+            #     + np.angle(innerProductTwo)
+            #     + np.angle(innerProductThree)
+            #     + np.angle(innerProductFour)
+            # )
+            berryPhase = np.angle(innerProductOne*innerProductTwo*innerProductThree*innerProductFour)
+
+                # Phase shift to range [-π, π] (dont need this with np.angle constraint!)
+            # berryPhase = (berryPhase + PI) % (2*PI) - PI
+
+            # Accumulate Berry phases for all states
+            accumulator += berryPhase
+    return (accumulator / (2*PI)) + 1/NUM_STATES
+
+def helper(thetaRes, V):
+    thetas = np.linspace(0, 2*np.pi, num=thetaRes, endpoint=True)
+    eigValueGrid = np.zeros((thetaRes, thetaRes, NUM_STATES, NUM_STATES), dtype=complex)
+    min_eigs = np.zeros((thetaRes*thetaRes, NUM_STATES-1))
+    index=0
+
+    for i in range(thetaRes):
+        for j in range(thetaRes):
+            H = constructHamiltonian(NUM_STATES, thetas[i], thetas[j], V)
+            eigs, eigv = np.linalg.eigh(H)
+            eigValueGrid[i, j] = eigv
+
+            min_eigs[index] = np.diff(eigs)  # Minimum spacing at (0,0)
+            index += 1
     
-    - grid: Eigenvalue data grid [theta_x, theta_y, eigs] at each (i, j)
-    - numTheta: Number of theta points along one axis
-    - N: Total number of eigenvalues
-    - mismatch_indices: List of mismatched eigenvalue indices to highlight (default: center region)
-    """
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
+    pctile = np.percentile(min_eigs,0.1,axis=1) # calculate lowest 20th percentile
+    eigspacing = np.min(pctile) # get the closest spaced surface 20th pctile only...
+    print(eigspacing)
 
-    # Generate random colors for non-mismatched eigenvalues
-    colors = [tuple(random.random() for _ in range(3)) for _ in range(N)]  
+    # Compute Chern numbers
+    chern_numbers = np.round(computeChernGridV2_vectorized(eigValueGrid, thetaRes), decimals=3)
+    chern_sum = np.sum(chern_numbers)
 
-    # Locate eigenvalues closest to the mismatches
-    X = np.array([[grid[i, j][0] for j in range(numTheta)] for i in range(numTheta)])
-    Y = np.array([[grid[i, j][1] for j in range(numTheta)] for i in range(numTheta)])
-    
-    # **Step 1: Identify indices to plot**
-    if mismatch_indices is None or len(mismatch_indices) == 0:
-        mismatch_indices = [N // 2]  # Default to center eigenvalue index
+    return chern_numbers, chern_sum
 
-    # Find the range of eigenvalues to plot (center around mismatches)
-    min_idx = max(0, min(mismatch_indices) - 4)
-    max_idx = min(N, max(mismatch_indices) + 4)
-
-    for idx in range(min_idx, max_idx):  
-        Z = np.array([[grid[i, j][2][idx] for j in range(numTheta)] for i in range(numTheta)])
-        
-        # Highlight mismatched eigenvalues in RED
-        if idx in mismatch_indices:
-            ax.plot_surface(X, Y, Z, color='red', edgecolor='none', alpha=0.8)
-        else:
-            ax.plot_surface(X, Y, Z, color=colors[idx], edgecolor='none', alpha=0.8)
-
-    # Set axis labels
-    ax.set_xlabel('Theta-X')
-    ax.set_ylabel('Theta-Y')
-    ax.set_zlabel('Energy Value')
-    ax.set_title(f'Eigenvalue Surfaces Near Mismatch')
-
-    plt.tight_layout()
-    plt.show()
 
 if __name__ == "__main__":
-    mismatch = []
-    V_loaded = np.load("potential_matrix_trial_1_res_32.npy")
+    NUM_THETA =60
+    mismatch = [21,22]
+    V_loaded = np.load("potential_matrix_trial_176_Nstates_64.npy")
     grid = fullSimulationGrid(V_loaded,NUM_THETA)
-    plotEigenvalueMeshHelper(grid,NUM_THETA,NUM_STATES,mismatch)
+    helpers.plotSpecificEigenvalues(grid,NUM_THETA,NUM_STATES,mismatch)
+    # helper(30,V_loaded)
+
+    # # # alternatively, test convergence...
+    # ref_cherns, _ = helper(60,V_loaded)
+    # prevs = None
+    # for res in range (10,50,1):
+    #     chern_numbers, chern_sum = helper(res,V_loaded)
+    #     if prevs is None:
+    #         prevs = chern_numbers
+    #     else:
+    #         if np.allclose(ref_cherns,chern_numbers):
+    #             print(f"For {res}, Cherns match reference resolution")
+    #         else:
+    #             if np.allclose(prevs,chern_numbers):
+    #                 print(f"For {res}, Cherns match previous resolution")
+    #             else: print(f"For {res}, Cherns do not match previous resolution")
+    #             # print(f"Sum is: {chern_sum}") 
+    #             # print(chern_numbers)
+    #             print()
+    #         prevs = chern_numbers
+
+    # folderPath = "/Users/eddiedeleu/Desktop/Unconverged"
+    # for file_name in sorted(os.listdir(folderPath)):
+    #     if file_name.endswith(".npy"):
+    #         print(file_name)
+    #         file_name = os.path.join(folderPath, file_name)
+    #         V_loaded = np.load(file_name)
+
+    #         helper(30,V_loaded)
+    #         ref_cherns, _ = helper(80,V_loaded)
+    #         prevs = None
+    #         for res in range (71,85,1):
+    #             chern_numbers, chern_sum = helper(res,V_loaded)
+    #             if prevs is None:
+    #                 prevs = chern_numbers
+    #             else:
+    #                 if np.allclose(ref_cherns,chern_numbers):
+    #                     print(f"For {res}, Cherns match reference resolution")
+    #                 else:
+    #                     if np.allclose(prevs,chern_numbers):
+    #                         print(f"For {res}, Cherns match previous resolution")
+    #                     else: print(f"For {res}, Cherns do not match previous resolution")
+    #                     # print(f"Sum is: {chern_sum}") 
+    #                     # print(chern_numbers)
+    #                     print()
+    #                 prevs = chern_numbers

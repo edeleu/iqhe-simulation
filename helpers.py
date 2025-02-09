@@ -16,9 +16,9 @@ plt.rcParams.update({
     "ytick.labelsize": 8,                  # Y-axis tick font size
     # "figure.figsize": (3.5, 2.5),          # Default figure size for single-column plots
     # "figure.dpi": 300,                     # High resolution for publication
-    # "figure.dpi": 150,                     # High resolution for publication
+    "figure.dpi": 150,                     # High resolution for publication
     "lines.linewidth": 1,                  # Line width
-    "grid.linestyle": "--",                # Dashed grid lines
+    # "grid.linestyle": "--",                # Dashed grid lines
     "grid.color": "gray",                  # Grid line color
     "grid.alpha": 0.7,                     # Grid line transparency
     "axes.grid": True,                     # Enable grid by default
@@ -112,6 +112,92 @@ def plotRandomPotential3D(inverse_potential, plot_type="surface"):
     ax.set_xlabel("x")
     ax.set_ylabel("y")
     ax.set_zlabel("Magnitude")
+
+    plt.tight_layout()
+    plt.show()
+
+def fix_eigenvector_phases(eigv):
+    """
+    Fixes the phase of each eigenvector so that the first component is real, to ensure smoothness
+    of phase as we vary theta.
+    
+    Parameters:
+        eigv (ndarray): Eigenvector matrix of shape (num_states, num_states),
+                        where each column is an eigenvector.
+
+    Returns:
+        eigv_fixed (ndarray): Phase-corrected eigenvector matrix.
+    """
+    # Compute phase factors from the first row (first element of each eigenvector)
+    phase_factors = np.exp(-1j * np.angle(eigv[0, :]))
+
+    # Apply phase correction to each eigenvector (each column)
+    eigv_fixed = eigv * phase_factors[np.newaxis, :]
+
+    return eigv_fixed
+
+def fix_eigenvector_phases(eigv):
+    """
+    Fixes the phase of each eigenvector so that the first component is real.
+    """
+    phase_factors = np.exp(-1j * np.angle(eigv[0, :]))
+    return eigv * phase_factors[np.newaxis, :]
+
+def plotSpecificEigenvalues(grid, numTheta, N, mismatch_indices=None):
+    """
+    Plots the 8 eigenvalue surfaces nearest to mismatches, highlighting mismatches in RED.
+    
+    - grid: Eigenvalue data grid [theta_x, theta_y, eigs] at each (i, j)
+    - numTheta: Number of theta points along one axis
+    - N: Total number of eigenvalues
+    - mismatch_indices: List of mismatched eigenvalue indices to highlight (default: center region)
+    """
+
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+
+    # Generate random colors for non-mismatched eigenvalues
+    colors = [tuple(random.random() for _ in range(3)) for _ in range(N)]  
+    high_contrast_colors = ["#1f77b4", "#ff7f0e", "#2ca02c", "#9467bd", "#17becf", 
+    "#d62728", "#bcbd22", "#0000FF", "#008080", "#FF1493"]
+    import colorcet as cc  
+    colors = cc.glasbey_hv  # Highly distinct colors
+
+
+    # colors = [plt.cm.Dark2(i % 8) for i in range(N)]  # Ensures distinct colors
+
+    # Locate eigenvalues closest to the mismatches
+    X = np.array([[grid[i, j][0] for j in range(numTheta)] for i in range(numTheta)])
+    Y = np.array([[grid[i, j][1] for j in range(numTheta)] for i in range(numTheta)])
+    
+    # **Step 1: Identify indices to plot**
+    if mismatch_indices is None or len(mismatch_indices) == 0:
+        mismatch_indices = [N // 2]  # Default to center eigenvalue index
+
+    # Find the range of eigenvalues to plot (center around mismatches)
+    min_idx = max(0, min(mismatch_indices) - 4)
+    max_idx = min(N, max(mismatch_indices) + 4)
+
+    colorIDX=0
+    for idx in range(min_idx, max_idx):  
+        Z = np.array([[grid[i, j][2][idx] for j in range(numTheta)] for i in range(numTheta)])
+        
+        # Highlight mismatched eigenvalues in RED
+        if idx in mismatch_indices:
+            ax.plot_surface(X, Y, Z, color='red', edgecolor='none', alpha=0.9,linewidth=0,antialiased=True)
+        else:
+            ax.plot_surface(X, Y, Z, color=colors[colorIDX % len(colors)], edgecolor='none', alpha=0.9,linewidth=0,antialiased=True)
+            colorIDX+=1
+
+    # Set axis labels
+    ax.set_xlabel(r'$\boldsymbol{\theta}_x$', fontsize=14, labelpad=12)
+    ax.set_ylabel(r'$\boldsymbol{\theta}_y$', fontsize=14, labelpad=12)
+    ax.set_zlabel(r'\textbf{Energy Value}', fontsize=14, labelpad=12)
+    ax.set_title(r'\textbf{Eigenvalue Surfaces Near Mismatch}', fontsize=14)
+
+    # ax.grid(True, linestyle='--', linewidth=0.5, alpha=0.6)
+    ax.zaxis.label.set_rotation(90)  # Make Z-axis label readable
+
 
     plt.tight_layout()
     plt.show()

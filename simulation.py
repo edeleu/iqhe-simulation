@@ -3,6 +3,7 @@ import csv
 import timeit
 from numba import njit, prange, jit
 from timeit import default_timer as timer
+import os
 
 import precompute
 import helpers
@@ -16,8 +17,8 @@ import helpers
 IMAG = 1j
 PI = np.pi
 
-NUM_STATES = 256     # Number of states for the system
-NUM_THETA=26        # Number of theta for the THETA x,y mesh
+NUM_STATES = 64     # Number of states for the system
+NUM_THETA=30        # Number of theta for the THETA x,y mesh
 POTENTIAL_MATRIX_SIZE = int(4*np.sqrt(NUM_STATES))
 # basically experimental parameter, complete more testing with this size... (keep L/M small)
 
@@ -51,7 +52,18 @@ def constructHamiltonianEntry(indexJ,indexK,theta_x,theta_y,matrixV):
     return value
 
 # a simplified "original" version of constructing the entries, a bit easier to understand what's going on than above
-# @njit()
+# furthermore, we pass explicit thetas instead of indices
+def constructHamiltonianOriginal(matrix_size, theta_x, theta_y, matrixV):
+    # define values as complex128, ie, double precision for real and imaginary parts
+    H = np.zeros((matrix_size,matrix_size),dtype=np.complex128)
+
+    # actually, we only require the lower-triangular portion of the matrix, since it's Hermitian, taking advantage of eigh functon!
+    for j in prange(matrix_size):
+        for k in range(j+1):
+            # j,k entry in H
+            H[j,k]=constructHamiltonianEntryOriginal(j,k,theta_x,theta_y,matrixV)
+    return H
+
 def constructHamiltonianEntryOriginal(indexJ,indexK,theta_x,theta_y,matrixV):
     value = 0
     
@@ -124,7 +136,7 @@ def constructScatteringPotentialv1(size):
 
 # method of constructing potential as in 2019 paper
 def constructScatteringPotentialv2(size):
-    totalScatterers = 20*NUM_STATES
+    totalScatterers = 16*NUM_STATES
     # first pull numScatterers random xy locations and intensities
     L = np.sqrt(2*PI*NUM_STATES) # take ell^2 =1
     deltaQ = 2*PI/L
@@ -162,11 +174,10 @@ def fullSimulationGrid(thetaResolution=10,visualize=False):
     # V = constructScatteringPotential(POTENTIAL_MATRIX_SIZE)
     # V = constructScatteringPotentialv2(POTENTIAL_MATRIX_SIZE)
 
-    # next, loop over theta_x theta_y
+    # next, loop over theta_x theta_y (actually just the indices)
     thetas = np.linspace(0, 2*PI, num=thetaResolution, endpoint=True)
-    # print(thetas)
     delTheta = thetas[1]
-    print(delTheta)
+    # print(delTheta)
 
     eigGrid = np.zeros((thetaResolution,thetaResolution),dtype=object)
     eigValueGrid = np.zeros((thetaResolution,thetaResolution, NUM_STATES,NUM_STATES),dtype=complex)
@@ -182,7 +193,6 @@ def fullSimulationGrid(thetaResolution=10,visualize=False):
             eigGrid[indexONE,indexTWO]=[thetas[indexONE],thetas[indexTWO],eigs]   
             eigValueGrid[indexONE,indexTWO]=eigv
 
-    print(eigValueGrid.shape)
     # standard method of computing chern-numbers individually
     # cherns=[]
     # for i in range(NUM_STATES):
@@ -198,14 +208,18 @@ def fullSimulationGrid(thetaResolution=10,visualize=False):
     # now, vectorized computation of chern-numbers!
 
     cherns = np.round(computeChernGridV2_vectorized(eigValueGrid,thetaResolution),decimals=3)
+    eigenvalues = saveEigenvalues(V)
+    # print(cherns)
+    # print("Sum",sum(cherns))
+    # print(V)
+    return V, eigenvalues, cherns
 
-    if visualize:
-        print(cherns)
-        print("Sum",sum(cherns))
+    # if visualize:
+    #     print(cherns)
+    #     print("Sum",sum(cherns))
+    #     helpers.plotEigenvalueMeshHelper(eigGrid,thetaResolution,NUM_STATES)
 
-        helpers.plotEigenvalueMeshHelper(eigGrid,thetaResolution,NUM_STATES)
-
-    return cherns
+    # return cherns
 
 def computeChernGridV2(stateNumber,grid,thetaNUM):
     accumulator = 0
@@ -249,7 +263,7 @@ def computeChernGridV2(stateNumber,grid,thetaNUM):
     return (accumulator/(2*PI)+1/NUM_STATES)
 
 #NJIT speedup only occurs when using ensemble, otherwise it actually slows down on the first pass...
-# approx. 400x faster than og method, 2-3s total --> 0.005s total w/ NJIT, 8 cores
+# approx. 400x faster than og method, 2-3s total --> 0.07s total w/ NJIT, 8 cores
 @njit(parallel=True)
 def computeChernGridV2_vectorized(grid, thetaNUM):
     accumulator = np.zeros(NUM_STATES)  # Accumulator for each state
@@ -288,7 +302,6 @@ def computeChernGridV2_vectorized(grid, thetaNUM):
             accumulator += berryPhase
     return (accumulator / (2*PI)) + 1/NUM_STATES
 
-
 # a fully vectorized approach for computing chern numbers, good for small systems, but slows down for N>64
 def computeChernGridV2_fully_vectorized(grid, thetaNUM):
     # Stack the grid into a 4D array: (thetaNUM, thetaNUM, NumItems, NumStates)
@@ -316,7 +329,31 @@ def computeChernGridV2_fully_vectorized(grid, thetaNUM):
     # Normalize and compute Chern numbers
     return (accumulator / (2 * np.pi)) + 1 / NUM_STATES
 
+def saveEigenvalues(matrixV):
+    eigenvalues00 = np.zeros(NUM_STATES)
+    eigenvalues0PI = np.zeros(NUM_STATES)
+    eigenvaluesPI0 = np.zeros(NUM_STATES)
+    eigenvaluesPIPI = np.zeros(NUM_STATES)
 
+    H_00 = constructHamiltonianOriginal(NUM_STATES,0,0,matrixV)
+    eigs, _ = np.linalg.eigh(H_00,UPLO="L")
+    eigenvalues00 = eigs
+
+    H_0Pi = constructHamiltonianOriginal(NUM_STATES,0,0,matrixV)
+    eigs, _ = np.linalg.eigh(H_0Pi,UPLO="L")
+    eigenvalues0PI = eigs
+
+    H_Pi0 = constructHamiltonianOriginal(NUM_STATES,0,0,matrixV)
+    eigs, _ = np.linalg.eigh(H_Pi0,UPLO="L")
+    eigenvaluesPI0 = eigs
+
+    H_PIPI = constructHamiltonianOriginal(NUM_STATES,0,0,matrixV)
+    eigs, _ = np.linalg.eigh(H_PIPI,UPLO="L")
+    eigenvaluesPIPI = eigs
+
+    return eigenvalues00, eigenvalues0PI, eigenvaluesPI0, eigenvaluesPIPI
+
+#Ensemble method for saving chern-numbers as CSV
 def ensembleRun(n_iters,numTheta,csv_file):
     # Open the CSV file in write mode
     with open(csv_file, mode="a", newline="") as file:
@@ -332,19 +369,62 @@ def ensembleRun(n_iters,numTheta,csv_file):
             file.flush()  
             print("ITERATION ", i, "COMPLETE")
 
+def ensembleSave(n_iters,numTheta,dir):
+    # Loop to generate and write arrays
+    for iter in range(1,n_iters):  # Adjust the range for the desired number of rows
+        V, eigenvalues, cherns = fullSimulationGrid(numTheta,visualize=False)
+        save_trial_data(iter, V, cherns, eigenvalues, dir)
+        print("ITERATION ", iter, "COMPLETE")
+
 # function to help time something like the hamiltonian construction
 def timing():
-    NUM=1000
-    time = timeit.timeit("constructHamiltonian(256,3,7,V)", 'from __main__ import constructHamiltonian, PI, V', number=NUM)
+    NUM=10
+    # time = timeit.timeit("constructHamiltonian(256,3,7,V)", 'from __main__ import constructHamiltonian, PI, V', number=NUM)
     # time = timeit.timeit("optimizedConstructHamiltonian(16,8,2,V)", 'from __main__ import optimizedConstructHamiltonian, V', number=NUM)
-    # time = timeit.timeit("fullSimulationGrid(NUM_THETA,visualize=False)", 'from __main__ import fullSimulationGrid, NUM_THETA', number=NUM)
+    time = timeit.timeit("fullSimulationGrid(NUM_THETA,visualize=False)", 'from __main__ import fullSimulationGrid, NUM_THETA', number=NUM)
     
     print(f"Execution time: {time} seconds")
     print("Time per Call:", time/NUM)
 
+def save_trial_data(trial_num, V, chern_numbers, eigenvalues, output_dir):
+    """Save all trial data in a single compressed .npz file efficiently."""
+    os.makedirs(output_dir, exist_ok=True)
+    file_path = os.path.join(output_dir, f"trial_data_{trial_num}.npz")
+
+    # Save all arrays efficiently using np.savez_compressed
+    np.savez_compressed(
+        file_path,
+        PotentialMatrix=V, 
+        ChernNumbers=chern_numbers, 
+        SumChernNumbers=np.sum(chern_numbers), 
+        eigs00=eigenvalues[0], 
+        eigs0pi=eigenvalues[1], 
+        eigsPi0=eigenvalues[2], 
+        eigsPipi=eigenvalues[3]
+    )
+
+def load_trial_data(file_path):
+    """Load trial data efficiently from a .npz file."""
+    data = np.load(file_path)
+    return {
+        "PotentialMatrix": data["PotentialMatrix"],
+        "ChernNumbers": data["ChernNumbers"],
+        "SumChernNumbers": data["SumChernNumbers"],
+        "eigs00": data["eigs00"],
+        "eigs0pi": data["eigs0pi"],
+        "eigsPi0": data["eigsPi0"],
+        "eigsPipi": data["eigsPipi"]
+    }
 
 if __name__ == "__main__":
-    fullSimulationGrid(NUM_THETA,visualize=True)
+    ensembleSave(20,NUM_THETA,"Saved")
+    # dict = load_trial_data('/Users/eddiedeleu/Desktop/IQHE Simulation/Optimized/Saved/trial_data_1.npz')
+    # V = dict.get("PotentialMatrix")
+    # print(V)
+    # print(dict.get("ChernNumbers"))
+    # print(dict.get("eigs00"))
+
+    # fullSimulationGrid(NUM_THETA,visualize=True)
 
     # V = constructPotential(POTENTIAL_MATRIX_SIZE)
     # constructHamiltonian(256,3,7,V)
@@ -352,8 +432,8 @@ if __name__ == "__main__":
 
     # Comment the following lines for running an ensemble!
     # csv_file = "/scratch/gpfs/ed5754/iqheFiles/output.csv"
-    # csv_file = "output256.csv"
-    # ensembleRun(100,NUM_THETA,csv_file)
+    # csv_file = "Testing64.csv"
+    # ensembleRun(1000,NUM_THETA,csv_file)
 
     # Following lines are for visualizing the V_mn potential strength, translated back to real space!
     
@@ -361,3 +441,5 @@ if __name__ == "__main__":
     # pot = constructScatteringPotentialv2(POTENTIAL_MATRIX_SIZE)
     # helpers.plotRandomPotential(pot)
     # helpers.plotRandomPotential3D(pot)
+
+    # NEW method for saving data as .npy!
