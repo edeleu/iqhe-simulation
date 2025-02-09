@@ -17,13 +17,14 @@ import helpers
 IMAG = 1j
 PI = np.pi
 
-NUM_STATES = 64     # Number of states for the system
+NUM_STATES = 64    # Number of states for the system
 NUM_THETA=30        # Number of theta for the THETA x,y mesh
 POTENTIAL_MATRIX_SIZE = int(4*np.sqrt(NUM_STATES))
 # basically experimental parameter, complete more testing with this size... (keep L/M small)
 
 # Precompute look-up tables (matrices) for Hamiltonian exponentials
 mn_LUT, mj_LUT, mTheta_LUT = precompute.precompute_exponentialsNumPy(NUM_STATES, POTENTIAL_MATRIX_SIZE, NUM_THETA)
+print("Precomputations Done")
 
 # Construct the Hamiltonian Matrix for a given Theta, Num_States, and random-potential.
 # note: "theta" is actually an index here for efficiency
@@ -53,6 +54,7 @@ def constructHamiltonianEntry(indexJ,indexK,theta_x,theta_y,matrixV):
 
 # a simplified "original" version of constructing the entries, a bit easier to understand what's going on than above
 # furthermore, we pass explicit thetas instead of indices
+@njit(parallel=True,fastmath=True)
 def constructHamiltonianOriginal(matrix_size, theta_x, theta_y, matrixV):
     # define values as complex128, ie, double precision for real and imaginary parts
     H = np.zeros((matrix_size,matrix_size),dtype=np.complex128)
@@ -64,6 +66,7 @@ def constructHamiltonianOriginal(matrix_size, theta_x, theta_y, matrixV):
             H[j,k]=constructHamiltonianEntryOriginal(j,k,theta_x,theta_y,matrixV)
     return H
 
+@njit()
 def constructHamiltonianEntryOriginal(indexJ,indexK,theta_x,theta_y,matrixV):
     value = 0
     
@@ -207,6 +210,7 @@ def fullSimulationGrid(thetaResolution=10,visualize=False):
 
     # now, vectorized computation of chern-numbers!
 
+    print("Computing Final Values...")
     cherns = np.round(computeChernGridV2_vectorized(eigValueGrid,thetaResolution),decimals=3)
     eigenvalues = saveEigenvalues(V)
     # print(cherns)
@@ -339,15 +343,15 @@ def saveEigenvalues(matrixV):
     eigs, _ = np.linalg.eigh(H_00,UPLO="L")
     eigenvalues00 = eigs
 
-    H_0Pi = constructHamiltonianOriginal(NUM_STATES,0,0,matrixV)
+    H_0Pi = constructHamiltonianOriginal(NUM_STATES,0,PI,matrixV)
     eigs, _ = np.linalg.eigh(H_0Pi,UPLO="L")
     eigenvalues0PI = eigs
 
-    H_Pi0 = constructHamiltonianOriginal(NUM_STATES,0,0,matrixV)
+    H_Pi0 = constructHamiltonianOriginal(NUM_STATES,PI,0,matrixV)
     eigs, _ = np.linalg.eigh(H_Pi0,UPLO="L")
     eigenvaluesPI0 = eigs
 
-    H_PIPI = constructHamiltonianOriginal(NUM_STATES,0,0,matrixV)
+    H_PIPI = constructHamiltonianOriginal(NUM_STATES,PI,PI,matrixV)
     eigs, _ = np.linalg.eigh(H_PIPI,UPLO="L")
     eigenvaluesPIPI = eigs
 
@@ -392,6 +396,7 @@ def save_trial_data(trial_num, V, chern_numbers, eigenvalues, output_dir):
     file_path = os.path.join(output_dir, f"trial_data_{trial_num}.npz")
 
     # Save all arrays efficiently using np.savez_compressed
+    print("Saving Trial")
     np.savez_compressed(
         file_path,
         PotentialMatrix=V, 
