@@ -5,6 +5,7 @@ from numba import njit, prange, jit
 from timeit import default_timer as timer
 import os
 from datetime import datetime
+import cupy as cp
 
 import precompute
 import helpers
@@ -18,8 +19,8 @@ import helpers
 IMAG = 1j
 PI = np.pi
 
-NUM_STATES = 8    # Number of states for the system
-NUM_THETA=15        # Number of theta for the THETA x,y mesh
+NUM_STATES = 1024    # Number of states for the system
+NUM_THETA=84        # Number of theta for the THETA x,y mesh
 POTENTIAL_MATRIX_SIZE = int(4*np.sqrt(NUM_STATES))
 # basically experimental parameter, complete more testing with this size... (keep L/M small)
 
@@ -183,20 +184,18 @@ def fullSimulationGrid(thetaResolution=10,visualize=False):
     delTheta = thetas[1]
     # print(delTheta)
 
-    # eigGrid = np.zeros((thetaResolution,thetaResolution),dtype=object)
-    eigValueGrid = np.zeros((thetaResolution,thetaResolution, NUM_STATES,NUM_STATES),dtype=complex)
+    H_gpu = cp.zeros((NUM_STATES, NUM_STATES), dtype=cp.complex128)
+
+    eigValueGrid = np.zeros((thetaResolution,thetaResolution, NUM_STATES,NUM_STATES),dtype=np.complex128)
     for indexONE in range(thetaResolution):
         for indexTWO in range(thetaResolution):
             # H = constructHamiltonian(NUM_STATES,thetas[indexONE],thetas[indexTWO], V) 
             H = constructHamiltonian(NUM_STATES,indexONE,indexTWO, V) 
+            H_gpu = cp.asarray(H)
 
-            eigs, eigv = np.linalg.eigh(H,UPLO="L")
-            # eigs, eigv = scipy.linalg.eigh(H,driver="evd")
+            eigs_gpu, eigv_gpu = cp.linalg.eigh(H_gpu, UPLO="L")
 
-            # eigGrid[indexONE,indexTWO]=[thetas[indexONE],thetas[indexTWO],eigs]
-            # eigGrid[indexONE,indexTWO]=[thetas[indexONE],thetas[indexTWO],eigs]   
-            eigValueGrid[indexONE,indexTWO]=eigv
-
+            eigValueGrid[indexONE,indexTWO]=cp.asnumpy(eigv_gpu)
     # standard method of computing chern-numbers individually
     # cherns=[]
     # for i in range(NUM_STATES):
@@ -340,21 +339,27 @@ def saveEigenvalues(matrixV):
     eigenvaluesPI0 = np.zeros(NUM_STATES)
     eigenvaluesPIPI = np.zeros(NUM_STATES)
 
+    H_gpu = cp.zeros((NUM_STATES, NUM_STATES), dtype=cp.complex128)
+
     H_00 = constructHamiltonianOriginal(NUM_STATES,0,0,matrixV)
-    eigs, _ = np.linalg.eigh(H_00,UPLO="L")
-    eigenvalues00 = eigs
+    H_gpu = cp.asarray(H_00)
+    eigs_gpu, _ = cp.linalg.eigh(H_gpu, UPLO="L")
+    eigenvalues00 = cp.asnumpy(eigs_gpu)
 
     H_0Pi = constructHamiltonianOriginal(NUM_STATES,0,PI,matrixV)
-    eigs, _ = np.linalg.eigh(H_0Pi,UPLO="L")
-    eigenvalues0PI = eigs
+    H_gpu = cp.asarray(H_0Pi)
+    eigs_gpu, _ = cp.linalg.eigh(H_gpu, UPLO="L")
+    eigenvalues0PI = cp.asnumpy(eigs_gpu)
 
     H_Pi0 = constructHamiltonianOriginal(NUM_STATES,PI,0,matrixV)
-    eigs, _ = np.linalg.eigh(H_Pi0,UPLO="L")
-    eigenvaluesPI0 = eigs
+    H_gpu = cp.asarray(H_Pi0)
+    eigs_gpu, _ = cp.linalg.eigh(H_gpu, UPLO="L")    
+    eigenvaluesPI0 = cp.asnumpy(eigs_gpu)
 
     H_PIPI = constructHamiltonianOriginal(NUM_STATES,PI,PI,matrixV)
-    eigs, _ = np.linalg.eigh(H_PIPI,UPLO="L")
-    eigenvaluesPIPI = eigs
+    H_gpu = cp.asarray(H_PIPI)
+    eigs_gpu, _ = cp.linalg.eigh(H_gpu, UPLO="L")       
+    eigenvaluesPIPI = cp.asnumpy(eigs_gpu)
 
     return eigenvalues00, eigenvalues0PI, eigenvaluesPI0, eigenvaluesPIPI
 
@@ -428,8 +433,8 @@ def load_trial_data(file_path):
     }
 
 if __name__ == "__main__":
-    directory = "/scratch/gpfs/ed5754/iqheFiles/SaveData/N=8/"
-    ensembleSave(10000000,NUM_THETA,"Saved")
+    directory = "/scratch/gpfs/ed5754/iqheFiles/SaveData/N=1024/"
+    ensembleSave(10000000,NUM_THETA,directory)
     # dict = load_trial_data('/Users/eddiedeleu/Desktop/IQHE Simulation/Optimized/Saved/trial_data_1.npz')
     # V = dict.get("PotentialMatrix")
     # print(V)
