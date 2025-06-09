@@ -10,5 +10,7 @@ Guide of Files:
 - precompute.py: A helper file to precompute common exponentials when using a fixed theta-resolution for improved efficiency.
 
 Analysis: Contains scripts for analyzing, plotting, and visualizing the data in various automated ways.
+
 Convergence: Contains scripts for analyzing the boundary-space resolution required for converged Chern numbers.
+
 Experimental: Various experimental scripts not necessarily in working-order.
