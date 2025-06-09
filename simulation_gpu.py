@@ -17,8 +17,8 @@ import helpers
 IMAG = 1j
 PI = np.pi
 
-NUM_STATES = 256     # Number of states for the system
-NUM_THETA=26        # Number of theta for the THETA x,y mesh
+NUM_STATES = 128     # Number of states for the system
+NUM_THETA=30        # Number of theta for the THETA x,y mesh
 POTENTIAL_MATRIX_SIZE = int(4*np.sqrt(NUM_STATES))
 # basically experimental parameter, complete more testing with this size... (keep L/M small)
 
@@ -52,7 +52,18 @@ def constructHamiltonianEntry(indexJ,indexK,theta_x,theta_y,matrixV):
     return value
 
 # a simplified "original" version of constructing the entries, a bit easier to understand what's going on than above
-# @njit()
+# furthermore, we pass explicit thetas instead of indices
+def constructHamiltonianOriginal(matrix_size, theta_x, theta_y, matrixV):
+    # define values as complex128, ie, double precision for real and imaginary parts
+    H = np.zeros((matrix_size,matrix_size),dtype=np.complex128)
+
+    # actually, we only require the lower-triangular portion of the matrix, since it's Hermitian, taking advantage of eigh functon!
+    for j in prange(matrix_size):
+        for k in range(j+1):
+            # j,k entry in H
+            H[j,k]=constructHamiltonianEntryOriginal(j,k,theta_x,theta_y,matrixV)
+    return H
+
 def constructHamiltonianEntryOriginal(indexJ,indexK,theta_x,theta_y,matrixV):
     value = 0
     
@@ -295,7 +306,7 @@ if __name__ == "__main__":
 
     # V = constructPotential(POTENTIAL_MATRIX_SIZE)
     # constructHamiltonian(256,3,7,V)
-    # timing()
+    timing()
 
     # Comment the following lines for running an ensemble!
     # csv_file = "/scratch/gpfs/ed5754/iqheFiles/output.csv"
