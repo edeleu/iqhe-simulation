@@ -32,7 +32,7 @@ CHERN_FILTERS = {
     r'C = $-1$': [-1],
     r'C = $+1$': [1],
     r'$|$C$|$ = 1': [-1, 1],
-    r'C $\\ne 0$': [-3, -2, -1, 1, 2, 3]
+    r'C $\ne 0$': [-3, -2, -1, 1, 2, 3]
 }
 
 # Data processing
@@ -103,7 +103,7 @@ def generate_scatter_histograms(all_separations, energy_range, pdf):
                 )
             # Title with N and bins for panel 1
             axs[0].set_title(
-                f"Linear (99%)\nN={len(data99)}, bins={n_bins}",
+                f'Linear (99\%)\nN={len(data99)}, bins={n_bins}',
                 fontsize=10
             )
             axs[0].set_xlabel(r"$s/\langle s \rangle$")
@@ -119,7 +119,7 @@ def generate_scatter_histograms(all_separations, energy_range, pdf):
                 centers100, density100, s=4, color=color_cycle[i]
             )
             axs[1].set_title(
-                f"Linear (100%)\nN={len(norm_grp)}, bins={n_bins}",
+                f'Linear (100\%)\nN={len(norm_grp)}, bins={n_bins}',
                 fontsize=10
             )
             axs[1].set_xlabel(r"$s/\langle s \rangle$")
@@ -129,7 +129,8 @@ def generate_scatter_histograms(all_separations, energy_range, pdf):
             axs[2].semilogy(
                 centers100, density100,
                 marker='.', linestyle='None', markersize=4,
-                color=color_cycle[i]
+                color=color_cycle[i],
+                label=f'G{i+1}: {len(norm_grp)} pts'
             )
             axs[2].set_title(
                 f"Log-Linear\nN={len(norm_grp)}, bins={n_bins}",
@@ -142,19 +143,18 @@ def generate_scatter_histograms(all_separations, energy_range, pdf):
             # Log-Log
             pos = norm_grp[norm_grp > 0]
             if len(pos) > 1:
+                # create log‐spaced bins
                 bins_log = np.logspace(
                     np.log10(pos.min()), np.log10(pos.max()), n_bins
                 )
                 counts_log, edges_log = np.histogram(pos, bins=bins_log)
-                widths_log = np.diff(edges_log)
-                centers_log = edges_log[:-1] * np.sqrt(
-                    edges_log[1:] / edges_log[:-1]
-                )
-                density_log = counts_log / (len(pos) * widths_log)
+                # compute bin centers geometrically
+                centers_log = edges_log[:-1] * np.sqrt(edges_log[1:] / edges_log[:-1])
+                # plot raw counts instead of density
                 axs[3].loglog(
-                    centers_log, density_log,
+                    centers_log, counts_log,
                     marker='.', linestyle='None', markersize=4,
-                    color=color_cycle[i], label=f'G{i+1}: {len(pos)} pts'
+                    color=color_cycle[i]
                 )
             axs[3].set_title(
                 f"Log-Log\nN={len(pos)}, bins={n_bins}",
@@ -162,6 +162,7 @@ def generate_scatter_histograms(all_separations, energy_range, pdf):
             )
             axs[3].set_xlabel(r"$\log s/\langle s \rangle$")
             axs[3].set_ylabel(r"$\log P(s/\langle s \rangle)$")
+
         plt.tight_layout(rect=[0, 0, 1, 0.95])
         pdf.savefig(fig)
         plt.close(fig)
@@ -187,4 +188,4 @@ def analyze_folder(folder_path, energy_range=(-0.3, 0.3)):
     with PdfPages('ps_scatter_plots.pdf') as pdf:
         generate_scatter_histograms(all_seps, energy_range, pdf)
 
-analyze_folder("/scratch/gpfs/ed5754/iqheFiles/Full_Dataset/FinalData/N=64/", energy_range=(-0.3, 0.3))
+analyze_folder("/scratch/gpfs/ed5754/iqheFiles/Full_Dataset/FinalData/N=128/", energy_range=(-0.3, 0.3))
