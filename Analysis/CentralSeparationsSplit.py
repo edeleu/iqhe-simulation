@@ -35,6 +35,15 @@ CHERN_FILTERS = {
     r'C $\ne 0$': [-3, -2, -1, 1, 2, 3]
 }
 
+# -- Custom Distributions for Wigner Surmise --
+def overlay_gue_curve(ax, s_max=6, num_points=1000, label="GUE", color="green", linestyle="--"):
+    s = np.linspace(0, s_max, num_points)
+    p_s = (32 / np.pi**2) * s**2 * np.exp(-4 * s**2 / np.pi)
+    # p_s = np.exp(-1.65*(s-0.6))
+    # p_s = s*np.exp(-s)
+
+    ax.plot(s, p_s, label=label, color=color, linestyle=linestyle)
+
 # Data processing
 def process_trial(data, energy_range, chern_filters):
     eigs = data['eigs']
@@ -66,7 +75,7 @@ def get_dynamic_bin_count(n):
     return min(bins, 250)
 
 
-def split_into_groups(seps, n_groups=4):
+def split_into_groups(seps, n_groups=1):
     seps = np.asarray(seps)
     np.random.shuffle(seps)
     return [seps[i::n_groups] for i in range(n_groups)]
@@ -74,6 +83,25 @@ def split_into_groups(seps, n_groups=4):
 # Plotting
 
 def generate_scatter_histograms(all_separations, energy_range, pdf):
+    # Define power-law overlays (exponent, label)
+    POWER_LAWS = [
+        (2, r'$x^2$'),
+        (2.5, r'$x^{2.5}$'),
+        (3, r'$x^{3}$')
+    ]
+
+    # Custom scaling factors per Chern filter
+    POWER_LAW_SCALES = {
+        r'All Chern': {2: 2e4, 2.5: 3e4, 3: 1e4},
+        r'C = $0$ or $+1$': {2: 3e4, 2.5: 3e4, 3: 1e4},
+        r'C = $0$ or $-1$': {2: 3e4, 2.5: 3e4, 3: 1e4},
+        r'C = $0$': {2: 3e4, 2.5: 3e4, 3: 1e4},
+        r'C = $-1$': {2: 8e3, 2.5: 8e3, 3: 1e4},
+        r'C = $+1$': {2: 8e3, 2.5: 8e3, 3: 1e4},
+        r'$|$C$|$ = 1': {2: 3e4, 2.5: 3e4, 3: 2e4},
+        r'C $\ne 0$': {2: 3e4, 2.5: 3e4, 3: 2e4},
+    }
+
     for name, seps in all_separations.items():
         if len(seps) < 2:
             continue
@@ -84,6 +112,9 @@ def generate_scatter_histograms(all_separations, energy_range, pdf):
             f"{name}  |  Energy: [{energy_range[0]:.3f}, {energy_range[1]:.3f}]",
             fontsize=12
         )
+
+        all_centers_log = []
+        all_counts_log = []
 
         for i, grp in enumerate(groups):
             norm_grp, _ = normalize_separations(grp)
@@ -101,9 +132,8 @@ def generate_scatter_histograms(all_separations, energy_range, pdf):
                 axs[0].scatter(
                     centers99, density99, s=4, color=color_cycle[i]
                 )
-            # Title with N and bins for panel 1
             axs[0].set_title(
-                f'Linear (99\%)\nN={len(data99)}, bins={n_bins}',
+                f'Linear (99\%)\nN={len(seps)}, bins={n_bins}',
                 fontsize=10
             )
             axs[0].set_xlabel(r"$s/\langle s \rangle$")
@@ -119,7 +149,7 @@ def generate_scatter_histograms(all_separations, energy_range, pdf):
                 centers100, density100, s=4, color=color_cycle[i]
             )
             axs[1].set_title(
-                f'Linear (100\%)\nN={len(norm_grp)}, bins={n_bins}',
+                f'Linear (100\%)\nN={len(seps)}, bins={n_bins}',
                 fontsize=10
             )
             axs[1].set_xlabel(r"$s/\langle s \rangle$")
@@ -133,35 +163,56 @@ def generate_scatter_histograms(all_separations, energy_range, pdf):
                 label=f'G{i+1}: {len(norm_grp)} pts'
             )
             axs[2].set_title(
-                f"Log-Linear\nN={len(norm_grp)}, bins={n_bins}",
+                f"Log-Linear\nN={len(seps)}, bins={n_bins}",
                 fontsize=10
             )
             axs[2].set_xlabel(r"$s/\langle s \rangle$")
             axs[2].set_ylabel(r"$\log P(s/\langle s \rangle)$")
             axs[2].legend(fontsize=6)
+            # overlay_gue_curve(axs[2])
+            # axs[2].set_ylim(1e-4, 1.7)
 
             # Log-Log
             pos = norm_grp[norm_grp > 0]
             if len(pos) > 1:
-                # create log‐spaced bins
                 bins_log = np.logspace(
                     np.log10(pos.min()), np.log10(pos.max()), n_bins
                 )
                 counts_log, edges_log = np.histogram(pos, bins=bins_log)
-                # compute bin centers geometrically
                 centers_log = edges_log[:-1] * np.sqrt(edges_log[1:] / edges_log[:-1])
-                # plot raw counts instead of density
                 axs[3].loglog(
                     centers_log, counts_log,
                     marker='.', linestyle='None', markersize=4,
                     color=color_cycle[i]
                 )
-            axs[3].set_title(
-                f"Log-Log\nN={len(pos)}, bins={n_bins}",
-                fontsize=10
-            )
-            axs[3].set_xlabel(r"$\log s/\langle s \rangle$")
-            axs[3].set_ylabel(r"$\log P(s/\langle s \rangle)$")
+                all_centers_log.extend(centers_log)
+                all_counts_log.extend(counts_log)
+
+        axs[3].set_title(
+            f"Log-Log\nN={len(seps)}, bins={n_bins}",
+            fontsize=10
+        )
+        axs[3].set_xlabel(r"$\log s/\langle s \rangle$")
+        axs[3].set_ylabel(r"$\log P(s/\langle s \rangle)$")
+
+        # === Overlay power laws ONCE per filter ===
+        if all_centers_log:
+            all_centers_log = np.array(all_centers_log)
+            x_min = np.min(all_centers_log)
+            x_max = np.max(all_centers_log)
+            x_fit = np.logspace(np.log10(x_min), np.log10(x_max), 500)
+            scales = POWER_LAW_SCALES.get(name, {})
+            for exp, label in POWER_LAWS:
+                scale = scales.get(exp, None)
+                if scale is not None:
+                    y_fit = scale * x_fit**exp
+                    axs[3].loglog(x_fit, y_fit, linestyle='--', linewidth=1, label=label)
+            axs[3].legend(fontsize=6)
+            y_all = np.array(all_counts_log)
+            y_positive = y_all[y_all > 0]
+            if len(y_positive) > 0:
+                ymin, ymax = y_positive.min(), y_positive.max()
+                axs[3].set_ylim(0.8 * ymin, 1.2 * ymax)
 
         plt.tight_layout(rect=[0, 0, 1, 0.95])
         pdf.savefig(fig)
@@ -188,4 +239,4 @@ def analyze_folder(folder_path, energy_range=(-0.3, 0.3)):
     with PdfPages('ps_scatter_plots.pdf') as pdf:
         generate_scatter_histograms(all_seps, energy_range, pdf)
 
-analyze_folder("/scratch/gpfs/ed5754/iqheFiles/Full_Dataset/FinalData/N=128/", energy_range=(-0.3, 0.3))
+analyze_folder("/scratch/gpfs/ed5754/iqheFiles/Full_Dataset/FinalData/N=1024_Mem/", energy_range=(-0.03, 0.03))
