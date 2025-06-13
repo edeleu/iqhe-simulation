@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 import os
 from matplotlib import gridspec, rc
+import scipy.stats as stats
 
 plt.rcParams.update({
     "text.usetex": True,
@@ -57,7 +58,11 @@ def process_trial(data, energy_range, chern_filters):
             filtered = trial_eigs
         else:
             filtered = trial_eigs[np.isin(trial_chern, cf)]
-        seps = np.diff(np.sort(filtered)) if len(filtered) > 1 else np.array([])
+
+        sorted_filtered = np.sort(filtered)
+        seps = sorted_filtered[2:] - sorted_filtered[:-2] if len(sorted_filtered) > 2 else np.array([])
+
+        # seps = np.diff(np.sort(filtered)) if len(filtered) > 1 else np.array([])
         results[name] = seps
     return results
 
@@ -180,6 +185,10 @@ def generate_scatter_histograms(all_separations, energy_range, pdf):
                 )
                 counts_log, edges_log = np.histogram(pos, bins=bins_log)
                 centers_log = edges_log[:-1] * np.sqrt(edges_log[1:] / edges_log[:-1])
+                #widths_log = np.diff(edges_log)
+                #centers_log = edges_log[:-1] * np.sqrt(edges_log[1:] / edges_log[:-1])
+                #density_log = counts_log / (len(pos) * widths_log)
+
                 axs[3].loglog(
                     centers_log, counts_log,
                     marker='.', linestyle='None', markersize=4,
@@ -210,6 +219,29 @@ def generate_scatter_histograms(all_separations, energy_range, pdf):
             axs[3].legend(fontsize=6)
             y_all = np.array(all_counts_log)
             y_positive = y_all[y_all > 0]
+            if len(y_positive) > 0:
+                ymin, ymax = y_positive.min(), y_positive.max()
+                axs[3].set_ylim(0.8 * ymin, 1.2 * ymax)
+
+        ## ALTERNATIVE METHOD:
+        # === Fit a power law up to x=0.5 and overlay it ===
+        x_thresh = 0.5
+        all_centers_log = np.array(all_centers_log)
+        all_counts_log = np.array(all_counts_log)
+        mask = (all_centers_log > 0) & (all_counts_log > 0) & (all_centers_log <= x_thresh)
+
+        if np.sum(mask) > 2:
+            log_x = np.log10(all_centers_log[mask])
+            log_y = np.log10(all_counts_log[mask])
+            slope, intercept, _, _, _ = stats.linregress(log_x, log_y)
+
+            x_fit = np.logspace(np.log10(min(all_centers_log)), np.log10(max(all_centers_log)), 500)
+            y_fit = 10**intercept * x_fit**slope
+            axs[3].loglog(x_fit, y_fit, linestyle='--', color='black', label=fr'$x^{{{slope:.2f}}}$')
+            axs[3].axvline(x=x_thresh, color='gray', linestyle=':', linewidth=1)
+            axs[3].legend(fontsize=6)
+
+            y_positive = all_counts_log[all_counts_log > 0]
             if len(y_positive) > 0:
                 ymin, ymax = y_positive.min(), y_positive.max()
                 axs[3].set_ylim(0.8 * ymin, 1.2 * ymax)
