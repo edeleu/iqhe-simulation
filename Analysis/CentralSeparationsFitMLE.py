@@ -65,11 +65,11 @@ def gue_cdf(s_vals, b=2):
     return cdf_vals / cdf_vals[-1]  # normalize to 1
 
 # Perform KS test
-def perform_ks_test(norm_all):
-    s_vals = np.linspace(0, np.max(norm_all) * 1.1, 1000)
+def perform_ks_test(norm_all,b=2):
+    s_vals = np.linspace(1e-3, np.max(norm_all) * 1.1, 1000)
 
     # Interpolated CDF of model
-    cdf_model_vals = gue_cdf(s_vals)
+    cdf_model_vals = gue_cdf(s_vals,b)
 
     # Interpolated function for use with scipy's kstest
     model_cdf_interp = interp1d(s_vals, cdf_model_vals, kind='linear', bounds_error=False, fill_value=(0.0, 1.0))
@@ -145,15 +145,14 @@ def generate_scatter_histograms(all_separations, energy_range, pdf):
             continue
 
         norm_all, _ = normalize_separations(seps)
-        ks_stat, ks_p = perform_ks_test(norm_all)
-        print(f"KS statistic: {ks_stat:.4f}, p-value: {ks_p:.4f}")
-
-
         result = minimize_scalar(neg_log_likelihood, bounds=(0.5, 8), args=(norm_all,), method='bounded')
         b_fit = result.x
 
         s_fit = np.linspace(1e-2, np.max(norm_all) * 1.05, 400)
         pdf_fit = normalized_pdf(s_fit, b_fit)
+
+        ks_stat, ks_p = perform_ks_test(norm_all,b_fit)
+        print(f"KS statistic: {ks_stat:.4f}, p-value: {ks_p:.4f}")
 
         groups = split_into_groups(seps)
         fig, axs = plt.subplots(1, 5, figsize=(22, 4))
