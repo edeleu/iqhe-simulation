@@ -21,3 +21,14 @@ def normalized_pdf(s, b):
     c = c_of_b(b)
     A = 2 * c**((b + 1)/2) / gamma((b + 1)/2)
     return A * s**b * np.exp(-c * s**2)
+
+# Test value
+b=1.65
+c = c_of_b(b)
+A = 2 * c**((b + 1)/2) / gamma((b + 1)/2)
+
+print(c)
+print("expected:", -4/np.pi)
+
+print(A)
+print("expected,",32/(np.pi*np.pi))
