@@ -112,7 +112,7 @@ def generate_scatter_histograms(all_separations, energy_range, pdf):
             continue
 
         groups = split_into_groups(seps)
-        fig, axs = plt.subplots(1, 4, figsize=(16, 4))
+        fig, axs = plt.subplots(1, 4, figsize=(18, 4))
         fig.suptitle(
             f"{name}  |  Energy: [{energy_range[0]:.3f}, {energy_range[1]:.3f}]",
             fontsize=12
