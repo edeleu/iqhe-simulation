@@ -312,7 +312,7 @@ def generate_scatter_histograms(all_separations, energy_range, pdf):
                     popt, _ = curve_fit(poly_model, centerszoom, densityzoom)
                     x_fit = np.linspace(0, 0.5, 300)
                     y_fit = poly_model(x_fit, *popt)
-                    axs[0].plot(x_fit, y_fit, 'g--', label=fr"$A x^2 + B x^4$ fit\nA={popt[0]:.3f}, B={popt[1]:.3f}")
+                    axs[0].plot(x_fit, y_fit, 'g--', label=fr"$A x^2 + B x^4$" + "\n" + fr"$A={popt[0]:.3f},\ B={popt[1]:.3f}$")
                 except RuntimeError:
                     print("Fit failed for zoomed-in region")
                 # Fit power-law model
@@ -320,18 +320,19 @@ def generate_scatter_histograms(all_separations, energy_range, pdf):
                 try:
                     popt_power, _ = curve_fit(power_law, centerszoom, densityzoom, p0=[1.0, 2.0])
                     y_fit_power = power_law(x_fit, *popt_power)
-                    axs[0].plot(x_fit, y_fit_power, 'b--', label=fr"$A x^{{\beta}}$\nA={popt_power[0]:.2f}, β={popt_power[1]:.2f}")
+                    axs[0].plot(x_fit, y_fit_power, 'b--', label=fr"$A x^{{\beta}}$" + "\n" + fr"$A={popt_power[0]:.2f},\ \beta={popt_power[1]:.2f}$")
                 except RuntimeError:
                     print("Power-law fit failed")
 
                 # Existing fit overlay
-                axs[0].plot(s_fit, normalized_pdf(s_fit, b_fit), 'r--', label=f"Fit b={b_fit:.2f}")
+                axs[0].plot(s_fit, normalized_pdf(s_fit, b_fit), 'r--', label=f"GUE Fit $b={b_fit:.2f}$")
 
             overlay_gue_curve(axs[0])
             axs[0].set_title(f'Linear (99%)\nN={len(seps)}, bins={n_bins}', fontsize=10)
             axs[0].set_xlabel(r"$s/\langle s \rangle$")
             axs[0].set_ylabel(r"$P(s/\langle s \rangle)$")
             axs[0].set_xlim(0, 0.5)
+            axs[0].set_ylim(0, 0.75)
             axs[0].legend(fontsize=7)
 
 
@@ -342,7 +343,7 @@ def generate_scatter_histograms(all_separations, energy_range, pdf):
             centers100 = edges100[:-1] + widths100 / 2
             density100 = counts100 / (len(norm_grp) * widths100)
             axs[1].scatter(centers100, density100, s=4, color=color_cycle[i])
-            axs[1].plot(s_fit, normalized_pdf(s_fit, b_fit), 'r--',label=fr'$GUE-Fit: b={b_fit:.2f}$')
+            axs[1].plot(s_fit, normalized_pdf(s_fit, b_fit), 'r--',label=f'GUE-Fit: $b={b_fit:.2f}$')
             
 
             axs[1].set_title(f'Linear (100\%)\nN={len(seps)}, bins={n_bins}', fontsize=10)
@@ -355,7 +356,7 @@ def generate_scatter_histograms(all_separations, energy_range, pdf):
             # Log-linear
             axs[2].semilogy(centers100, density100, marker='.', linestyle='None', markersize=4,
                             color=color_cycle[i], label=f'G{i+1}: {len(norm_grp)} pts')
-            axs[2].plot(s_fit, normalized_pdf(s_fit, b_fit), 'r--',label=fr'$GUE-Fit: b={b_fit:.2f}$')
+            axs[2].plot(s_fit, normalized_pdf(s_fit, b_fit), 'r--',label=fr'GUE-Fit: $b={b_fit:.2f}$')
             axs[2].set_title(f"Log-Linear\nN={len(seps)}, bins={n_bins}", fontsize=10)
             axs[2].set_xlabel(r"$s/\langle s \rangle$")
             axs[2].set_ylabel(r"$\log P(s/\langle s \rangle)$")
@@ -377,7 +378,7 @@ def generate_scatter_histograms(all_separations, energy_range, pdf):
                 centers_log = edges_log[:-1] * np.sqrt(edges_log[1:] / edges_log[:-1])
                 axs[3].loglog(centers100, density100, marker='.', linestyle='None', markersize=4,
                               color=color_cycle[i])
-                axs[3].plot(s_fit, normalized_pdf(s_fit, b_fit), 'r--',label=fr'$GUE-Fit: b={b_fit:.2f}$')
+                axs[3].plot(s_fit, normalized_pdf(s_fit, b_fit), 'r--',label=fr'GUE-Fit: $b={b_fit:.2f}$')
                 overlay_gue_curve(axs[3])
                 axs[3].legend(fontsize=6)
 
@@ -422,22 +423,45 @@ def generate_scatter_histograms(all_separations, energy_range, pdf):
         axs[2].set_ylim(5e-5, 1.7)
         axs[3].set_ylim(5e-5, 1.7)
 
-        # === Fit a power law up to x=0.5 and overlay it ===
+        # # === Fit a power law up to x=0.5 and overlay it === (prev. incorrect!)
+        # x_thresh = 0.5
+        # all_centers_log = np.array(all_centers_log)
+        # all_counts_log = np.array(all_counts_log)
+        # mask = (all_centers_log > 0) & (all_counts_log > 0) & (all_centers_log <= x_thresh)
+
+        # if np.sum(mask) > 2:
+        #     log_x = np.log10(all_centers_log[mask])
+        #     log_y = np.log10(all_counts_log[mask])
+        #     slope, intercept, _, _, _ = stats.linregress(log_x, log_y)
+
+        #     x_fit = np.logspace(np.log10(min(all_centers_log)), np.log10(max(all_centers_log)), 500)
+        #     y_fit = 10**intercept * x_fit**slope
+        #     axs[3].loglog(x_fit, y_fit, linestyle='--', color='black', label=fr'$x^{{{slope:.2f}}}$')
+        #     axs[3].axvline(x=x_thresh, color='gray', linestyle=':', linewidth=1)
+        #     axs[3].legend(fontsize=6)
+
+        # === Fit a power law in linear space up to x=0.5 ===
         x_thresh = 0.5
         all_centers_log = np.array(all_centers_log)
         all_counts_log = np.array(all_counts_log)
+
         mask = (all_centers_log > 0) & (all_counts_log > 0) & (all_centers_log <= x_thresh)
+        x_data = all_centers_log[mask]
+        y_data = all_counts_log[mask]
 
-        if np.sum(mask) > 2:
-            log_x = np.log10(all_centers_log[mask])
-            log_y = np.log10(all_counts_log[mask])
-            slope, intercept, _, _, _ = stats.linregress(log_x, log_y)
+        if len(x_data) > 2:
+            try:
+                popt, _ = curve_fit(power_law, x_data, y_data, p0=[1.0, 2.0])
+                A_fit, beta_fit = popt
+                x_fit = np.linspace(x_data.min(), x_data.max(), 500)
+                y_fit = power_law(x_fit, A_fit, beta_fit)
 
-            x_fit = np.logspace(np.log10(min(all_centers_log)), np.log10(max(all_centers_log)), 500)
-            y_fit = 10**intercept * x_fit**slope
-            axs[3].loglog(x_fit, y_fit, linestyle='--', color='black', label=fr'$x^{{{slope:.2f}}}$')
-            axs[3].axvline(x=x_thresh, color='gray', linestyle=':', linewidth=1)
-            axs[3].legend(fontsize=6)
+                axs[3].plot(x_fit, y_fit, linestyle='--', color='black',
+                            label=fr"$A x^{{\beta}}$ fit\n$A={A_fit:.2f},\ \beta={beta_fit:.2f}$")
+                axs[3].axvline(x=x_thresh, color='gray', linestyle=':', linewidth=1)
+                axs[3].legend(fontsize=6)
+            except RuntimeError:
+                print("Power-law fit failed in linear space")
 
 
         plt.tight_layout(rect=[0, 0, 1, 0.95])
@@ -492,5 +516,5 @@ def analyze_folder_three_scenarios(folder_path, energy_range=(-0.3, 0.3)):
     with PdfPages('three_parity_scenarios_analysis.pdf') as pdf:
         generate_scatter_histograms(all_seps, energy_range, pdf)
 
-# analyze_folder("/scratch/gpfs/ed5754/iqheFiles/Full_Dataset/FinalData/N=1024_Mem/", energy_range=(-0.03, 0.03))
+analyze_folder("/scratch/gpfs/ed5754/iqheFiles/Full_Dataset/FinalData/N=1024_Mem/", energy_range=(-0.03, 0.03))
 # analyze_folder_three_scenarios("/scratch/gpfs/ed5754/iqheFiles/Full_Dataset/FinalData/N=1024_Mem/", energy_range=(-0.03, 0.03))
