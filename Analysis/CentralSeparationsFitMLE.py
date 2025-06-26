@@ -43,8 +43,13 @@ CHERN_FILTERS = {
     r'C $\ne 0$': [-3, -2, -1, 1, 2, 3]
 }
 
+def poly_model(x, A, B):
+    return A * x**2 + B * x**4
+def power_law(x, A, beta):
+    return A * x**beta
+
 # -- Custom Distributions for Wigner Surmise --
-def overlay_gue_curve(ax, s_max=6, num_points=1000, label="GUE", color="green", linestyle="--"):
+def overlay_gue_curve(ax, s_max=6, num_points=1000, label="Reference GUE", color="green", linestyle="--"):
     s = np.linspace(0, s_max, num_points)
     p_s = (32 / np.pi**2) * s**2 * np.exp(-4 * s**2 / np.pi)
     # p_s = np.exp(-1.65*(s-0.6))
@@ -99,6 +104,89 @@ def process_trial(data, energy_range, chern_filters):
         results[name] = seps
     return results
 
+
+# Updated process_trial function implementing three parity scenarios explicitly
+def process_trial_three_scenarios(data, energy_range):
+    eigs = data['eigs']
+    chern = data['chern']
+    mask = (eigs >= energy_range[0]) & (eigs <= energy_range[1])
+    trial_eigs = eigs[mask]
+    trial_chern = chern[mask]
+
+    sort_indices = np.argsort(trial_eigs)
+    sorted_eigs = trial_eigs[sort_indices]
+    sorted_chern = trial_chern[sort_indices]
+
+    results = {
+        'C=+1 to nearest -1': [],
+        'C=-1 to nearest +1': [],
+        'C=±1 to nearest opposite parity': []
+    }
+
+    for i in range(len(sorted_eigs)):
+        current_chern = sorted_chern[i]
+        if current_chern not in [-1, 1]:
+            continue
+
+        # Scenario: Current C=+1, nearest C=-1
+        if current_chern == 1:
+            j = i - 1
+            nearest_minus_dist = np.inf
+            while j >= 0:
+                if sorted_chern[j] == -1:
+                    nearest_minus_dist = sorted_eigs[i] - sorted_eigs[j]
+                    break
+                j -= 1
+            j = i + 1
+            while j < len(sorted_eigs):
+                if sorted_chern[j] == -1:
+                    dist_right = sorted_eigs[j] - sorted_eigs[i]
+                    nearest_minus_dist = min(nearest_minus_dist, dist_right)
+                    break
+                j += 1
+            if nearest_minus_dist < np.inf:
+                results['C=+1 to nearest -1'].append(nearest_minus_dist)
+
+        # Scenario: Current C=-1, nearest C=+1
+        if current_chern == -1:
+            j = i - 1
+            nearest_plus_dist = np.inf
+            while j >= 0:
+                if sorted_chern[j] == 1:
+                    nearest_plus_dist = sorted_eigs[i] - sorted_eigs[j]
+                    break
+                j -= 1
+            j = i + 1
+            while j < len(sorted_eigs):
+                if sorted_chern[j] == 1:
+                    dist_right = sorted_eigs[j] - sorted_eigs[i]
+                    nearest_plus_dist = min(nearest_plus_dist, dist_right)
+                    break
+                j += 1
+            if nearest_plus_dist < np.inf:
+                results['C=-1 to nearest +1'].append(nearest_plus_dist)
+
+        # Scenario: C=±1 to nearest opposite parity
+        j = i - 1
+        nearest_opposite_dist = np.inf
+        while j >= 0:
+            if sorted_chern[j] == -current_chern:
+                nearest_opposite_dist = sorted_eigs[i] - sorted_eigs[j]
+                break
+            j -= 1
+        j = i + 1
+        while j < len(sorted_eigs):
+            if sorted_chern[j] == -current_chern:
+                dist_right = sorted_eigs[j] - sorted_eigs[i]
+                nearest_opposite_dist = min(nearest_opposite_dist, dist_right)
+                break
+            j += 1
+        if nearest_opposite_dist < np.inf:
+            results['C=±1 to nearest opposite parity'].append(nearest_opposite_dist)
+
+    return {k: np.array(v) for k, v in results.items()}
+
+
 def normalize_separations(seps):
     if len(seps) == 0:
         return seps, 0
@@ -138,6 +226,26 @@ def neg_log_likelihood(b, s_data):
         return np.inf
     return -np.sum(np.log(pdf_vals))
 
+def compute_chi_squared(norm_data, model_pdf_func, b=None, num_bins=50):
+    # Histogram the data (you get counts, not densities)
+    counts, bin_edges = np.histogram(norm_data, bins=num_bins)
+    bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2
+    bin_widths = np.diff(bin_edges)
+    total_counts = np.sum(counts)
+
+    # Evaluate model PDF over bin centers
+    model_pdf = model_pdf_func(bin_centers) if b is None else model_pdf_func(bin_centers, b)
+
+    # Expected counts = PDF * bin width * total number of samples
+    expected = model_pdf * bin_widths * total_counts
+
+    # Avoid zero expected counts
+    mask = expected > 0
+    chi2 = np.sum((counts[mask] - expected[mask])**2 / expected[mask])
+    dof = np.sum(mask) - (1 if b is not None else 0)  # subtract 1 for fitted parameter
+
+    return chi2, dof, chi2 / dof
+
 def generate_scatter_histograms(all_separations, energy_range, pdf):
 
     for name, seps in all_separations.items():
@@ -154,31 +262,78 @@ def generate_scatter_histograms(all_separations, energy_range, pdf):
         ks_stat, ks_p = perform_ks_test(norm_all,b_fit)
         print(f"KS statistic: {ks_stat:.4f}, p-value: {ks_p:.4f}")
 
+        chi2, dof, red_chi2 = compute_chi_squared(norm_all, normalized_pdf, b=b_fit)
+        print(f"Chi-squared = {chi2:.2f}, DOF = {dof}, reduced = {red_chi2:.2f}")
+
+
         groups = split_into_groups(seps)
-        fig, axs = plt.subplots(1, 5, figsize=(22, 4))
+        fig, axs = plt.subplots(1, 5, figsize=(24, 4))
         fig.suptitle(
             f"{name}  |  Energy: [{energy_range[0]:.3f}, {energy_range[1]:.3f}]  |  Fitted $b = {b_fit:.3f}$",
             fontsize=12)
+        
+        all_centers_log = []
+        all_counts_log = []
 
         for i, grp in enumerate(groups):
             norm_grp, _ = normalize_separations(grp)
             n_bins = get_dynamic_bin_count(len(norm_grp))
 
-            # Linear 99% plot
-            cutoff = np.percentile(norm_grp, 99)
-            data99 = norm_grp[norm_grp <= cutoff]
-            if len(data99) > 1:
-                bins99 = np.linspace(data99.min(), data99.max(), n_bins)
-                counts99, edges99 = np.histogram(data99, bins=bins99)
-                widths99 = np.diff(edges99)
-                centers99 = edges99[:-1] + widths99 / 2
-                density99 = counts99 / (len(norm_grp) * widths99)
-                axs[0].scatter(centers99, density99, s=4, color=color_cycle[i])
-                axs[0].plot(s_fit, normalized_pdf(s_fit, b_fit), 'r--', label=f"Fit b={b_fit:.2f}")
+            # # Linear 99% plot
+            # cutoff = np.percentile(norm_grp, 99)
+            # data99 = norm_grp[norm_grp <= cutoff]
+            # if len(data99) > 1:
+            #     bins99 = np.linspace(data99.min(), data99.max(), n_bins)
+            #     counts99, edges99 = np.histogram(data99, bins=bins99)
+            #     widths99 = np.diff(edges99)
+            #     centers99 = edges99[:-1] + widths99 / 2
+            #     density99 = counts99 / (len(norm_grp) * widths99)
+            #     axs[0].scatter(centers99, density99, s=4, color=color_cycle[i])
+            #     axs[0].plot(s_fit, normalized_pdf(s_fit, b_fit), 'r--', label=f"Fit b={b_fit:.2f}")
 
-            axs[0].set_title(f'Linear (99\%)\nN={len(seps)}, bins={n_bins}', fontsize=10)
+            # axs[0].set_title(f'Linear (99\%)\nN={len(seps)}, bins={n_bins}', fontsize=10)
+            # axs[0].set_xlabel(r"$s/\langle s \rangle$")
+            # axs[0].set_ylabel(r"$P(s/\langle s \rangle)$")
+
+            # Linear 0.5 plot
+            datazoom = norm_grp[norm_grp <= 0.5]
+            if len(datazoom) > 1:
+                binszoom = np.linspace(datazoom.min(), datazoom.max(), 50)
+                countszoom, edgeszoom = np.histogram(datazoom, bins=binszoom)
+                widthszoom = np.diff(edgeszoom)
+                centerszoom = edgeszoom[:-1] + widthszoom / 2
+                densityzoom = countszoom / (len(norm_grp) * widthszoom)
+
+                # Plot histogram points
+                axs[0].scatter(centerszoom, densityzoom, s=4, color=color_cycle[i], label='Data')
+
+                # Fit Ax^2 + Bx^4 model to the histogram data
+                try:
+                    popt, _ = curve_fit(poly_model, centerszoom, densityzoom)
+                    x_fit = np.linspace(0, 0.5, 300)
+                    y_fit = poly_model(x_fit, *popt)
+                    axs[0].plot(x_fit, y_fit, 'g--', label=fr"$A x^2 + B x^4$ fit\nA={popt[0]:.3f}, B={popt[1]:.3f}")
+                except RuntimeError:
+                    print("Fit failed for zoomed-in region")
+                # Fit power-law model
+
+                try:
+                    popt_power, _ = curve_fit(power_law, centerszoom, densityzoom, p0=[1.0, 2.0])
+                    y_fit_power = power_law(x_fit, *popt_power)
+                    axs[0].plot(x_fit, y_fit_power, 'b--', label=fr"$A x^{{\beta}}$\nA={popt_power[0]:.2f}, β={popt_power[1]:.2f}")
+                except RuntimeError:
+                    print("Power-law fit failed")
+
+                # Existing fit overlay
+                axs[0].plot(s_fit, normalized_pdf(s_fit, b_fit), 'r--', label=f"Fit b={b_fit:.2f}")
+                overlay_gue_curve[axs[0]]
+
+            axs[0].set_title(f'Linear (99%)\nN={len(seps)}, bins={n_bins}', fontsize=10)
             axs[0].set_xlabel(r"$s/\langle s \rangle$")
             axs[0].set_ylabel(r"$P(s/\langle s \rangle)$")
+            axs[0].set_xlim(0, 0.5)
+            axs[0].legend(fontsize=7)
+
 
             # Linear 100% plot
             bins100 = np.linspace(norm_grp.min(), norm_grp.max(), n_bins)
@@ -187,22 +342,27 @@ def generate_scatter_histograms(all_separations, energy_range, pdf):
             centers100 = edges100[:-1] + widths100 / 2
             density100 = counts100 / (len(norm_grp) * widths100)
             axs[1].scatter(centers100, density100, s=4, color=color_cycle[i])
-            axs[1].plot(s_fit, normalized_pdf(s_fit, b_fit), 'r--')
+            axs[1].plot(s_fit, normalized_pdf(s_fit, b_fit), 'r--',label=fr'$GUE-Fit: b={b_fit:.2f}$')
             
 
             axs[1].set_title(f'Linear (100\%)\nN={len(seps)}, bins={n_bins}', fontsize=10)
             axs[1].set_xlabel(r"$s/\langle s \rangle$")
             axs[1].set_ylabel(r"$P(s/\langle s \rangle)$")
+            overlay_gue_curve(axs[1])
+            axs[1].legend(fontsize=6)            
+            # axs[1].set_xlim(0, 4)
 
             # Log-linear
             axs[2].semilogy(centers100, density100, marker='.', linestyle='None', markersize=4,
                             color=color_cycle[i], label=f'G{i+1}: {len(norm_grp)} pts')
-            axs[2].plot(s_fit, normalized_pdf(s_fit, b_fit), 'r--')
+            axs[2].plot(s_fit, normalized_pdf(s_fit, b_fit), 'r--',label=fr'$GUE-Fit: b={b_fit:.2f}$')
             axs[2].set_title(f"Log-Linear\nN={len(seps)}, bins={n_bins}", fontsize=10)
             axs[2].set_xlabel(r"$s/\langle s \rangle$")
             axs[2].set_ylabel(r"$\log P(s/\langle s \rangle)$")
-            axs[2].legend(fontsize=6)
+            overlay_gue_curve(axs[2])
+            axs[2].legend(fontsize=6)   
             axs[2].set_ylim(1e-4, 1.7)
+            # axs[2].set_xlim(0, 4)
 
             # Fit b by minimizing squared error to histogram
             popt, _ = curve_fit(hist_pdf, centers100, density100, bounds=(0.5, 10))
@@ -217,7 +377,12 @@ def generate_scatter_histograms(all_separations, energy_range, pdf):
                 centers_log = edges_log[:-1] * np.sqrt(edges_log[1:] / edges_log[:-1])
                 axs[3].loglog(centers100, density100, marker='.', linestyle='None', markersize=4,
                               color=color_cycle[i])
-                axs[3].plot(s_fit, normalized_pdf(s_fit, b_fit), 'r--')
+                axs[3].plot(s_fit, normalized_pdf(s_fit, b_fit), 'r--',label=fr'$GUE-Fit: b={b_fit:.2f}$')
+                overlay_gue_curve(axs[3])
+                axs[3].legend(fontsize=6)
+
+                all_centers_log.extend(centers100)
+                all_counts_log.extend(density100)
 
             # === Q-Q Plot vs GUE: decimated + percentile quantiles ===
 
@@ -257,6 +422,24 @@ def generate_scatter_histograms(all_separations, energy_range, pdf):
         axs[2].set_ylim(5e-5, 1.7)
         axs[3].set_ylim(5e-5, 1.7)
 
+        # === Fit a power law up to x=0.5 and overlay it ===
+        x_thresh = 0.5
+        all_centers_log = np.array(all_centers_log)
+        all_counts_log = np.array(all_counts_log)
+        mask = (all_centers_log > 0) & (all_counts_log > 0) & (all_centers_log <= x_thresh)
+
+        if np.sum(mask) > 2:
+            log_x = np.log10(all_centers_log[mask])
+            log_y = np.log10(all_counts_log[mask])
+            slope, intercept, _, _, _ = stats.linregress(log_x, log_y)
+
+            x_fit = np.logspace(np.log10(min(all_centers_log)), np.log10(max(all_centers_log)), 500)
+            y_fit = 10**intercept * x_fit**slope
+            axs[3].loglog(x_fit, y_fit, linestyle='--', color='black', label=fr'$x^{{{slope:.2f}}}$')
+            axs[3].axvline(x=x_thresh, color='gray', linestyle=':', linewidth=1)
+            axs[3].legend(fontsize=6)
+
+
         plt.tight_layout(rect=[0, 0, 1, 0.95])
         pdf.savefig(fig)
         plt.close(fig)
@@ -282,4 +465,32 @@ def analyze_folder(folder_path, energy_range=(-0.3, 0.3)):
     with PdfPages('ps_scatter_plots.pdf') as pdf:
         generate_scatter_histograms(all_seps, energy_range, pdf)
 
-analyze_folder("/scratch/gpfs/ed5754/iqheFiles/Full_Dataset/FinalData/N=1024_Mem/", energy_range=(-0.03, 0.03))
+# Analyze folder using new three-scenario parity processing
+def analyze_folder_three_scenarios(folder_path, energy_range=(-0.3, 0.3)):
+    files = [f for f in os.listdir(folder_path) if f.endswith('.npz')]
+    total = len(files)
+    print(f"Processing {total} files.")
+    all_seps = {
+        'C=+1 to nearest -1': [],
+        'C=-1 to nearest +1': [],
+        'C=±1 to nearest opposite parity': []
+    }
+
+    for idx, f in enumerate(files, 1):
+        if idx % 100 == 0:
+            print(f"  Processed {idx}/{total} files.")
+        data = np.load(os.path.join(folder_path, f))
+        if not np.isclose(data['SumChernNumbers'], 1, atol=1e-5):
+            continue
+        trial = {'eigs': data['eigsPipi'], 'chern': data['ChernNumbers']}
+        res = process_trial_three_scenarios(trial, energy_range)
+        for name, seps in res.items():
+            if len(seps):
+                all_seps[name].append(seps)
+
+    all_seps = {k: np.concatenate(v) for k, v in all_seps.items() if v}
+    with PdfPages('three_parity_scenarios_analysis.pdf') as pdf:
+        generate_scatter_histograms(all_seps, energy_range, pdf)
+
+# analyze_folder("/scratch/gpfs/ed5754/iqheFiles/Full_Dataset/FinalData/N=1024_Mem/", energy_range=(-0.03, 0.03))
+# analyze_folder_three_scenarios("/scratch/gpfs/ed5754/iqheFiles/Full_Dataset/FinalData/N=1024_Mem/", energy_range=(-0.03, 0.03))
