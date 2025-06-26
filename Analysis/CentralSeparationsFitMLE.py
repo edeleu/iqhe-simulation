@@ -326,8 +326,8 @@ def generate_scatter_histograms(all_separations, energy_range, pdf):
 
                 # Existing fit overlay
                 axs[0].plot(s_fit, normalized_pdf(s_fit, b_fit), 'r--', label=f"Fit b={b_fit:.2f}")
-                overlay_gue_curve[axs[0]]
 
+            overlay_gue_curve(axs[0])
             axs[0].set_title(f'Linear (99%)\nN={len(seps)}, bins={n_bins}', fontsize=10)
             axs[0].set_xlabel(r"$s/\langle s \rangle$")
             axs[0].set_ylabel(r"$P(s/\langle s \rangle)$")
