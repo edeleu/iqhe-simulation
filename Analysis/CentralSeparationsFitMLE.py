@@ -312,7 +312,7 @@ def generate_scatter_histograms(all_separations, energy_range, pdf):
                     popt, _ = curve_fit(poly_model, centerszoom, densityzoom)
                     x_fit = np.linspace(0, 0.5, 300)
                     y_fit = poly_model(x_fit, *popt)
-                    axs[0].plot(x_fit, y_fit, 'g--', label=fr"$A x^2 + B x^4$" + "\n" + fr"$A={popt[0]:.3f},\ B={popt[1]:.3f}$")
+                    axs[0].plot(x_fit, y_fit, linestyle='--', color='blue', label=fr"$A x^2 + B x^4$" + "\n" + fr"$A={popt[0]:.3f},\ B={popt[1]:.3f}$")
                 except RuntimeError:
                     print("Fit failed for zoomed-in region")
                 # Fit power-law model
@@ -320,7 +320,7 @@ def generate_scatter_histograms(all_separations, energy_range, pdf):
                 try:
                     popt_power, _ = curve_fit(power_law, centerszoom, densityzoom, p0=[1.0, 2.0])
                     y_fit_power = power_law(x_fit, *popt_power)
-                    axs[0].plot(x_fit, y_fit_power, 'b--', label=fr"$A x^{{\beta}}$" + "\n" + fr"$A={popt_power[0]:.2f},\ \beta={popt_power[1]:.2f}$")
+                    axs[0].plot(x_fit, y_fit_power, linestyle='--', color='black', label=fr"$A x^{{\beta}}$" + "\n" + fr"$A={popt_power[0]:.2f},\ \beta={popt_power[1]:.2f}$")
                 except RuntimeError:
                     print("Power-law fit failed")
 
@@ -328,7 +328,7 @@ def generate_scatter_histograms(all_separations, energy_range, pdf):
                 axs[0].plot(s_fit, normalized_pdf(s_fit, b_fit), 'r--', label=f"GUE Fit $b={b_fit:.2f}$")
 
             overlay_gue_curve(axs[0])
-            axs[0].set_title(f'Linear (99%)\nN={len(seps)}, bins={n_bins}', fontsize=10)
+            axs[0].set_title(f'Linear (99\%)\nN={len(seps)}, bins={n_bins}', fontsize=10)
             axs[0].set_xlabel(r"$s/\langle s \rangle$")
             axs[0].set_ylabel(r"$P(s/\langle s \rangle)$")
             axs[0].set_xlim(0, 0.5)
@@ -424,45 +424,42 @@ def generate_scatter_histograms(all_separations, energy_range, pdf):
         axs[3].set_ylim(5e-5, 1.7)
 
         # # === Fit a power law up to x=0.5 and overlay it === (prev. incorrect!)
-        # x_thresh = 0.5
-        # all_centers_log = np.array(all_centers_log)
-        # all_counts_log = np.array(all_counts_log)
-        # mask = (all_centers_log > 0) & (all_counts_log > 0) & (all_centers_log <= x_thresh)
-
-        # if np.sum(mask) > 2:
-        #     log_x = np.log10(all_centers_log[mask])
-        #     log_y = np.log10(all_counts_log[mask])
-        #     slope, intercept, _, _, _ = stats.linregress(log_x, log_y)
-
-        #     x_fit = np.logspace(np.log10(min(all_centers_log)), np.log10(max(all_centers_log)), 500)
-        #     y_fit = 10**intercept * x_fit**slope
-        #     axs[3].loglog(x_fit, y_fit, linestyle='--', color='black', label=fr'$x^{{{slope:.2f}}}$')
-        #     axs[3].axvline(x=x_thresh, color='gray', linestyle=':', linewidth=1)
-        #     axs[3].legend(fontsize=6)
-
-        # === Fit a power law in linear space up to x=0.5 ===
         x_thresh = 0.5
         all_centers_log = np.array(all_centers_log)
         all_counts_log = np.array(all_counts_log)
-
         mask = (all_centers_log > 0) & (all_counts_log > 0) & (all_centers_log <= x_thresh)
-        x_data = all_centers_log[mask]
-        y_data = all_counts_log[mask]
 
-        if len(x_data) > 2:
-            try:
-                popt, _ = curve_fit(power_law, x_data, y_data, p0=[1.0, 2.0])
-                A_fit, beta_fit = popt
-                x_fit = np.linspace(x_data.min(), x_data.max(), 500)
-                y_fit = power_law(x_fit, A_fit, beta_fit)
+        if np.sum(mask) > 2:
+            log_x = np.log10(all_centers_log[mask])
+            log_y = np.log10(all_counts_log[mask])
+            slope, intercept, _, _, _ = stats.linregress(log_x, log_y)
 
-                axs[3].plot(x_fit, y_fit, linestyle='--', color='black',
-                            label=fr"$A x^{{\beta}}$ fit\n$A={A_fit:.2f},\ \beta={beta_fit:.2f}$")
-                axs[3].axvline(x=x_thresh, color='gray', linestyle=':', linewidth=1)
-                axs[3].legend(fontsize=6)
-            except RuntimeError:
-                print("Power-law fit failed in linear space")
+            x_fit = np.logspace(np.log10(min(all_centers_log)), np.log10(max(all_centers_log)), 500)
+            y_fit = 10**intercept * x_fit**slope
+            axs[3].loglog(x_fit, y_fit, linestyle='--', color='black', label=fr'$x^{{{slope:.2f}}}$')
+            axs[3].axvline(x=x_thresh, color='gray', linestyle=':', linewidth=1)
+            axs[3].legend(fontsize=6)
 
+        # === Fit a power law in linear space up to x=0.5 === linear version, worse
+        # x_thresh = 0.5
+        # all_centers_log = np.array(all_centers_log)
+        # all_counts_log = np.array(all_counts_log)
+
+        # mask = (all_centers_log > 0) & (all_counts_log > 0) & (all_centers_log <= x_thresh)
+        # x_data = all_centers_log[mask]
+        # y_data = all_counts_log[mask]
+
+        # if len(x_data) > 2:
+        #     try:
+        #         popt, _ = curve_fit(power_law, x_data, y_data, p0=[1.0, 2.0])
+        #         A_fit, beta_fit = popt
+        #         x_fit = np.linspace(x_data.min(), x_data.max(), 500)
+        #         y_fit = power_law(x_fit, A_fit, beta_fit)
+        #         axs[3].plot(x_fit, y_fit, linestyle='--', color='black', label=fr"$A x^{{\beta}}$" + "\n" + fr"$A={A_fit:.2f},\ \beta={beta_fit:.2f}$")
+        #         axs[3].axvline(x=x_thresh, color='gray', linestyle=':', linewidth=1)
+        #         axs[3].legend(fontsize=6)
+        #     except RuntimeError:
+        #         print("Power-law fit failed in linear space")
 
         plt.tight_layout(rect=[0, 0, 1, 0.95])
         pdf.savefig(fig)
