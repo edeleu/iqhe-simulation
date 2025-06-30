@@ -85,7 +85,7 @@ def analyze_all_targets(folder_path, output_csv='chern_gap_stats.csv', hist_dir=
             plt.hist(gaps, bins=range(0, max(gaps)+2), align='left', edgecolor='black')
             plt.xlabel('Number of Intervening States')
             plt.ylabel('Frequency')
-            plt.title(f'Histogram for Number of Intervening States for Chern {target}')
+            plt.title(f'Intervening States for Chern {target}')
             plt.tight_layout()
             plt.savefig(os.path.join(hist_dir, f'gap_hist_chern_{target}.pdf'))
             plt.close()
