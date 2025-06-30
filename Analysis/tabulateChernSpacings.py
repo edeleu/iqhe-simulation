@@ -73,8 +73,8 @@ def analyze_all_targets(folder_path, output_csv='chern_gap_stats.csv', hist_dir=
         row = {
             'Chern Number': target,
             'Count': count,
-            'Average Gap (index count)': avg_gap,
-            'Average Separation (energy)': avg_sep
+            'Average Number of Intervening States': avg_gap,
+            'Average Energy Separation': avg_sep
         }
 
         rows.append(row)
@@ -83,9 +83,9 @@ def analyze_all_targets(folder_path, output_csv='chern_gap_stats.csv', hist_dir=
         if gaps:
             plt.figure()
             plt.hist(gaps, bins=range(0, max(gaps)+2), align='left', edgecolor='black')
-            plt.xlabel('Gap Size (number of intermediate indices)')
+            plt.xlabel('Number of Intervening States')
             plt.ylabel('Frequency')
-            plt.title(f'Gap Size Histogram for Chern {target}')
+            plt.title(f'Histogram for Number of Intervening States for Chern {target}')
             plt.tight_layout()
             plt.savefig(os.path.join(hist_dir, f'gap_hist_chern_{target}.pdf'))
             plt.close()
