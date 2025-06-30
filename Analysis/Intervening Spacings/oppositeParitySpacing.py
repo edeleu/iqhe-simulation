@@ -71,7 +71,9 @@ def analyze_opposite_parity(folder_path, output_csv='opposite_parity_stats.csv',
 
     results = {
         '+1_to_-1': {'gaps': [], 'seps': []},
-        '-1_to_+1': {'gaps': [], 'seps': []}
+        '-1_to_+1': {'gaps': [], 'seps': []},
+        '-1_to_0': {'gaps': [], 'seps': []},
+        '+1_to_0': {'gaps': [], 'seps': []}
     }
 
     for idx, f in enumerate(files, 1):
@@ -85,7 +87,7 @@ def analyze_opposite_parity(folder_path, output_csv='opposite_parity_stats.csv',
         eigs = data['eigsPipi']
         cherns = data['ChernNumbers']
 
-        for source, target, key in [(1, -1, '+1_to_-1'), (-1, 1, '-1_to_+1')]:
+        for source, target, key in [(1, -1, '+1_to_-1'), (-1, 1, '-1_to_+1'), (-1,0,'-1_to_0'), (+1,0,'+1_to_0')]:
             gaps, seps = intervening_opposite_parity(eigs, cherns, source, target)
             results[key]['gaps'].extend(gaps)
             results[key]['seps'].extend(seps)
