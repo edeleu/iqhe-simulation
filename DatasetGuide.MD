@@ -26,8 +26,7 @@ The file-sizes for each system-size archive are as follows:
 | 512                  | 24.99 GB       |
 | 1024                 | 21.96 GB       |
 | 2048                 | 20.62 GB       |
------------------------------------------
-| Total                | 236.34 GB      |
+| **Total**                | **236.34 GB**      |
 
 Within each system-size directory, there are are files for every trial in .npz format (compressed numpy format). Each .npz file represents data for a single trial: its name contains a timestamp when it was saved and a trial number (which is irrelevant).
 
