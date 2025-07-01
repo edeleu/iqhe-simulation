@@ -1,6 +1,6 @@
 Chern Numbers in the Lowest Landau Level Dataset Guide:
 
-The dataset is compressed in segments: the directory for each system-size is compressed as a separate archive, for efficiency. Tar + zstd compression is used: the archives "N=128.tar.zst" must thus be decompressed.
+This dataset is around ~250GB. The dataset is compressed in segments: the directory for each system-size is compressed as a separate archive, for efficiency. Tar + zstd compression is used: the archives "N=128.tar.zst" must thus be decompressed.
 
 The following command may be used for decompression:
 
@@ -10,22 +10,24 @@ tar --use-compress-program=unzstd -xvf N=128.tar.zst
 
 and similarly for other system-sizes.
 
-The file-sizes for each system-size are as follows:
+The file-sizes for each system-size archive are as follows:
 
 | System Size $N_\phi$ | File Size (GB) |
 |----------------------|----------------|
-| 8                    |                |
+| 8                    | 18.43 GB       |
 | 16v1                 | 16.95 GB       |
 | 16v2                 | 16.95 GB       |
-| 32                   |                |
-| 64                   |                |
-| 96                   |                |
+| 32                   | 12.96 GB       |
+| 64                   | 20.53 GB       |
+| 96                   | 19.23 GB       |
 | 128                  | 22.15 GB       |
 | 192                  | 19.69 GB       |
 | 256                  | 21.88 GB       |
-| 512                  |                |
+| 512                  | 24.99 GB       |
 | 1024                 | 21.96 GB       |
 | 2048                 | 20.62 GB       |
+-----------------------------------------
+| Total                | 236.34 GB      |
 
 Within each system-size directory, there are are files for every trial in .npz format (compressed numpy format). Each .npz file represents data for a single trial: its name contains a timestamp when it was saved and a trial number (which is irrelevant).
 
@@ -44,7 +46,6 @@ def load_trial_data(file_path):
         "eigsPi0": data["eigsPi0"],
         "eigsPipi": data["eigsPipi"]
     }
-```
 
 There are eigenvalues saved in arrays of length $N_\phi$ at four different boundary conditions: $[0,0], [0,\pi], [\pi,0], [\pi,\pi]$. The number of eigenvalues corresponds to the system-size of the parent directory, $N_\phi$. The eigenvalues are in sorted, increasing order. There is also an array of Chern numbers that corresponds directly to the arrays of eigenvalues.
 
