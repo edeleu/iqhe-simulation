@@ -1,6 +1,33 @@
 Chern Numbers in the Lowest Landau Level Dataset Guide:
 
-.npz files are arranged by system size. Each .npz file represents data for a single trial: its name contains a timestamp when it was saved and a trial number (which is irrelevant).
+The dataset is compressed in segments: the directory for each system-size is compressed as a separate archive, for efficiency. Tar + zstd compression is used: the archives "N=128.tar.zst" must thus be decompressed.
+
+The following command may be used for decompression:
+
+```
+tar --use-compress-program=unzstd -xvf N=128.tar.zst
+```
+
+and similarly for other system-sizes.
+
+The file-sizes for each system-size are as follows:
+
+| System Size $N_\phi$ | File Size (GB) |
+|-------------|----------------|
+| 8           |                |
+| 16v1        | 16.95 GB       |
+| 16v2        | 16.95 GB       |
+| 32          |                |
+| 64          |                |
+| 96          |                |
+| 128         | 22.15 GB       |
+| 192         |                |
+| 256         |                |
+| 512         |                |
+| 1024        | 21.96 GB       |
+| 2048        |                |
+
+Within each system-size directory, there are are files for every trial in .npz format (compressed numpy format). Each .npz file represents data for a single trial: its name contains a timestamp when it was saved and a trial number (which is irrelevant).
 
 An example of opening the data from one .npz file is below:
 
