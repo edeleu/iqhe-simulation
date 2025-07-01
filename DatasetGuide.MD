@@ -13,19 +13,19 @@ and similarly for other system-sizes.
 The file-sizes for each system-size are as follows:
 
 | System Size $N_\phi$ | File Size (GB) |
-|-------------|----------------|
-| 8           |                |
-| 16v1        | 16.95 GB       |
-| 16v2        | 16.95 GB       |
-| 32          |                |
-| 64          |                |
-| 96          |                |
-| 128         | 22.15 GB       |
-| 192         |                |
-| 256         |                |
-| 512         |                |
-| 1024        | 21.96 GB       |
-| 2048        |                |
+|----------------------|----------------|
+| 8                    |                |
+| 16v1                 | 16.95 GB       |
+| 16v2                 | 16.95 GB       |
+| 32                   |                |
+| 64                   |                |
+| 96                   |                |
+| 128                  | 22.15 GB       |
+| 192                  | 19.69 GB       |
+| 256                  | 21.88 GB       |
+| 512                  |                |
+| 1024                 | 21.96 GB       |
+| 2048                 | 20.62 GB       |
 
 Within each system-size directory, there are are files for every trial in .npz format (compressed numpy format). Each .npz file represents data for a single trial: its name contains a timestamp when it was saved and a trial number (which is irrelevant).
 
