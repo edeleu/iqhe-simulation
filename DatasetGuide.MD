@@ -45,6 +45,7 @@ def load_trial_data(file_path):
         "eigsPi0": data["eigsPi0"],
         "eigsPipi": data["eigsPipi"]
     }
+```
 
 There are eigenvalues saved in arrays of length $N_\phi$ at four different boundary conditions: $[0,0], [0,\pi], [\pi,0], [\pi,\pi]$. The number of eigenvalues corresponds to the system-size of the parent directory, $N_\phi$. The eigenvalues are in sorted, increasing order. There is also an array of Chern numbers that corresponds directly to the arrays of eigenvalues.
 
@@ -82,4 +83,4 @@ def constructPotential(size, mean=0, stdev=1):
     V[size, size] = 0
 
     return V/np.sqrt(NUM_STATES)
-    ```
+```
