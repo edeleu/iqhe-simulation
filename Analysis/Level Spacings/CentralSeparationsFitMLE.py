@@ -363,6 +363,10 @@ def generate_scatter_histograms(all_separations, energy_range, pdf):
             overlay_gue_curve(axs[2])
             axs[2].legend(fontsize=6)   
             axs[2].set_ylim(1e-4, 1.7)
+
+            x = np.linspace(norm_grp.min(), norm_grp.max(), 1000)
+            kde_full = stats.gaussian_kde(norm_grp)
+            axs[2].plot(x, kde_full(x), color="green", label="KDE-Fit", alpha=0.8)
             # axs[2].set_xlim(0, 4)
 
             # Fit b by minimizing squared error to histogram
