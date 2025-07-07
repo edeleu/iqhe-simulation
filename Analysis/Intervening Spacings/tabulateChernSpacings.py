@@ -56,6 +56,11 @@ def analyze_all_targets(folder_path, output_csv='chern_gap_stats.csv', hist_dir=
         sorted_cherns = cherns[sorted_indices]
         sorted_eigs = eigs[sorted_indices]
 
+        ## MASK SECTION
+        mask = (sorted_eigs >= -0.03) & (sorted_eigs <= 0.03)
+        sorted_cherns = sorted_cherns[mask]
+        sorted_eigs = sorted_eigs[mask]
+
         for target in chern_targets:
             gaps, seps = count_intermediate_cherns(sorted_cherns, sorted_eigs, target)
             gap_records[target].extend(gaps)

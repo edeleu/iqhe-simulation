@@ -7,6 +7,11 @@ def nearest_nonzero_chern_stats(eigs, cherns):
     sorted_eigs = eigs[sort_indices]
     sorted_cherns = cherns[sort_indices]
 
+    ## MASK SECTION
+    mask = (sorted_eigs >= -0.03) & (sorted_eigs <= 0.03)
+    sorted_cherns = sorted_cherns[mask]
+    sorted_eigs = sorted_eigs[mask]
+
     stats = {
         '+1': {'nearest +1': 0, 'nearest -1': 0},
         '-1': {'nearest +1': 0, 'nearest -1': 0}

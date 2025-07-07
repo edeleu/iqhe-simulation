@@ -84,8 +84,17 @@ def analyze_opposite_parity(folder_path, output_csv='opposite_parity_stats.csv',
         if not np.isclose(data['SumChernNumbers'], 1, atol=1e-5):
             continue
 
-        eigs = data['eigsPipi']
         cherns = data['ChernNumbers']
+        eigs = data['eigsPipi']
+        sorted_indices = np.argsort(eigs)
+        sorted_cherns = cherns[sorted_indices]
+        sorted_eigs = eigs[sorted_indices]
+
+        ## MASK SECTION
+        mask = (sorted_eigs >= -0.03) & (sorted_eigs <= 0.03)
+        cherns = sorted_cherns[mask]
+        eigs = sorted_eigs[mask]
+        
 
         for source, target, key in [(1, -1, '+1_to_-1'), (-1, 1, '-1_to_+1'), (-1,0,'-1_to_0'), (+1,0,'+1_to_0')]:
             gaps, seps = intervening_opposite_parity(eigs, cherns, source, target)
