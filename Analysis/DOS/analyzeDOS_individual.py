@@ -90,8 +90,8 @@ def plot_dos_pdf(system_sizes, base_path, n_bins=50, output_pdf="DOS_per_system_
             continue
         
         # Symmetrize the data (include negative eigenvalues)
-        # all_eigs = np.concatenate((all_eigs, -all_eigs))
-        # nonzero_chern_eigs = np.concatenate((nonzero_chern_eigs, -nonzero_chern_eigs))
+        all_eigs = np.concatenate((all_eigs, -all_eigs))
+        nonzero_chern_eigs = np.concatenate((nonzero_chern_eigs, -nonzero_chern_eigs))
         
         # Create figure with two subplots: left for full, right for nonzero
         fig, (ax_full, ax_nonzero) = plt.subplots(1, 2, figsize=(16, 7))
@@ -107,7 +107,7 @@ def plot_dos_pdf(system_sizes, base_path, n_bins=50, output_pdf="DOS_per_system_
         ax_full.hist(all_eigs, bins=n_bins, density=True, alpha=0.5, color='C0', label=f"Histogram ({len(all_eigs)} pts)")
         
         # Compute KDE for full eigenvalues
-        kde_full = stats.gaussian_kde(all_eigs,bw_method=0.2) # bw_method=0.2
+        kde_full = stats.gaussian_kde(all_eigs,bw_method=0.1) # bw_method=0.2
         y_full = kde_full(x_full)
         ax_full.plot(x_full, y_full, 'k-', lw=1, label="KDE Fit",alpha=0.8)
         
@@ -116,7 +116,9 @@ def plot_dos_pdf(system_sizes, base_path, n_bins=50, output_pdf="DOS_per_system_
         ax_full.axvline(x_full[np.argmax(y_full)], color='k', linestyle='--', lw=1)
         ax_full.text(0.05, 0.95, fr"FWHM = {fwhm_full:.3f}", transform=ax_full.transAxes, 
                      verticalalignment='top', bbox=dict(facecolor='white', alpha=0.7))
-        
+        ax_full.vlines([-0.03, 0.03], ymin=0, ymax=[0.26, 0.26], 
+               colors='blue', linestyles='dotted', label="Central Window")
+
         ax_full.set_title("Full Eigenvalue Spectrum")
         ax_full.set_xlabel(r"Energy $E$")
         ax_full.set_ylabel(r"Density of States $\rho(E)$")
@@ -133,7 +135,7 @@ def plot_dos_pdf(system_sizes, base_path, n_bins=50, output_pdf="DOS_per_system_
         ax_nonzero.hist(nonzero_chern_eigs, bins=n_bins, weights=np.ones_like(nonzero_chern_eigs) / (len(all_eigs)*bin_width), alpha=0.5, color='C1', label=f"Histogram ({len(nonzero_chern_eigs)} pts)")
         
         # Compute KDE for nonzero chern eigenvalues
-        kde_nz = stats.gaussian_kde(nonzero_chern_eigs,bw_method=0.2) # bw_method=0.2
+        kde_nz = stats.gaussian_kde(nonzero_chern_eigs,bw_method=0.1) # bw_method=0.2
         y_nz = kde_nz(x_nz) * (len(nonzero_chern_eigs) / len(all_eigs))
         ax_nonzero.plot(x_nz, y_nz, 'k-', lw=1, label="KDE Fit",alpha=0.8)
         
@@ -142,6 +144,9 @@ def plot_dos_pdf(system_sizes, base_path, n_bins=50, output_pdf="DOS_per_system_
         ax_nonzero.axvline(x_nz[np.argmax(y_nz)], color='k', linestyle='--', lw=1)
         ax_nonzero.text(0.05, 0.95, fr"FWHM = {fwhm_nz:.3f}", transform=ax_nonzero.transAxes, 
                         verticalalignment='top', bbox=dict(facecolor='white', alpha=0.7))
+        
+        ax_nonzero.vlines([-0.03, 0.03], ymin=0, ymax=[0.1, 0.1], 
+               colors='blue', linestyles='dotted', label="Central Window")
         
         ax_nonzero.set_title("Nonzero Chern Eigenvalue Spectrum")
         ax_nonzero.set_xlabel(r"Energy $E$")
@@ -157,8 +162,9 @@ def plot_dos_pdf(system_sizes, base_path, n_bins=50, output_pdf="DOS_per_system_
 
 def main():
     # Configuration
-    base_path = "/Users/eddiedeleu/Desktop/FinalData"
+    base_path = "/scratch/gpfs/ed5754/iqheFiles/Full_Dataset/FinalData/"
     system_sizes = [8, 16, 32, 64, 96, 128, 192, 256, 512, 1024, 2048]
+    system_sizes = [1024]
     n_bins = 100  # Set your desired number of bins here
     
     # Generate PDF with one page per system size
