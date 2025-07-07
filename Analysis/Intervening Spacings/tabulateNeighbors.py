@@ -38,9 +38,15 @@ def tabulate_adjacent_cherns(folder_path, output_csv='chern_adjacency_counts.csv
             continue
 
         cherns = data['ChernNumbers']
-
-        sorted_indices = np.argsort(data['eigsPipi'])
+        eigs = data['eigsPipi']
+        sorted_indices = np.argsort(eigs)
         sorted_cherns = cherns[sorted_indices]
+        sorted_eigs = eigs[sorted_indices]
+
+        ## MASK SECTION
+        mask = (sorted_eigs >= -0.03) & (sorted_eigs <= 0.03)
+        sorted_cherns = sorted_cherns[mask]
+        sorted_eigs = sorted_eigs[mask]
 
         for i in range(len(sorted_cherns) - 1):
             chern_a, chern_b = sorted_cherns[i], sorted_cherns[i + 1]

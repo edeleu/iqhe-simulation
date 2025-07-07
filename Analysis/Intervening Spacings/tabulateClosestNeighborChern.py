@@ -6,9 +6,13 @@ def nearest_chern_stats(eigs, cherns):
     sorted_eigs = eigs[sort_indices]
     sorted_cherns = cherns[sort_indices]
 
+    mask = (sorted_eigs >= -0.03) & (sorted_eigs <= 0.03)
+    sorted_cherns = sorted_cherns[mask]
+    sorted_eigs = sorted_eigs[mask]
+
     stats = {
-        '+1': {'nearest +1': 0, 'nearest -1': 0, 'nearest 0': 0},
-        '-1': {'nearest +1': 0, 'nearest -1': 0, 'nearest 0': 0}
+        '+1': {'nearest +1': 0, 'nearest -1': 0, 'nearest 0': 0, 'nearest +2':0, 'nearest -2':0},
+        '-1': {'nearest +1': 0, 'nearest -1': 0, 'nearest 0': 0, 'nearest +2':0, 'nearest -2':0}
     }
 
     n = len(sorted_eigs)
@@ -42,7 +46,10 @@ def nearest_chern_stats(eigs, cherns):
             stats[key]['nearest -1'] += 1
         elif nearest_chern == 0:
             stats[key]['nearest 0'] += 1
-
+        elif nearest_chern == 2:
+            stats[key]['nearest +2'] += 1
+        elif nearest_chern == -2:
+            stats[key]['nearest -2'] += 1
     return stats
 
 def analyze_nearest_cherns(folder_path):
@@ -51,8 +58,8 @@ def analyze_nearest_cherns(folder_path):
     print(f"Processing {total} files.")
 
     cumulative_stats = {
-        '+1': {'nearest +1': 0, 'nearest -1': 0, 'nearest 0': 0},
-        '-1': {'nearest +1': 0, 'nearest -1': 0, 'nearest 0': 0}
+        '+1': {'nearest +1': 0, 'nearest -1': 0, 'nearest 0': 0, 'nearest +2':0, 'nearest -2':0},
+        '-1': {'nearest +1': 0, 'nearest -1': 0, 'nearest 0': 0,'nearest +2':0, 'nearest -2':0}
     }
 
     for idx, f in enumerate(files, 1):
@@ -68,7 +75,7 @@ def analyze_nearest_cherns(folder_path):
 
         stats = nearest_chern_stats(eigs, cherns)
         for chern_val in ['+1', '-1']:
-            for neighbor in ['nearest +1', 'nearest -1', 'nearest 0']:
+            for neighbor in ['nearest +1', 'nearest -1', 'nearest 0', 'nearest +2', 'nearest -2']:
                 cumulative_stats[chern_val][neighbor] += stats[chern_val][neighbor]
 
     print("\nFinal statistics:")
