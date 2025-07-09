@@ -5,7 +5,8 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 
 # If you want to do LOWESS, you'll need statsmodels:
-import statsmodels.api as sm
+# import statsmodels.api as sm
+# from statsmodels.nonparametric.smoothers_lowess import lowess
 from matplotlib import rc
 
 plt.rcParams.update({
@@ -53,6 +54,34 @@ def local_r_values(sorted_eigs):
         r_list.append(r_i)
 
     return E_mid, np.array(r_list)
+
+def r_overlapping(sorted_eigs):
+    """
+    Computes r_overlapping^(n) = (E_{i+2} - E_i) / (E_{i+1} - E_{i-1})
+    for i = 1 to M-3. Returns E_center = E_i, and r_values.
+    """
+    M = len(sorted_eigs)
+    if M < 4:
+        return np.array([]), np.array([])
+
+    E_center = sorted_eigs[1:M-2]
+    numerator = sorted_eigs[3:M] - sorted_eigs[1:M-2]
+    denominator = sorted_eigs[2:M-1] - sorted_eigs[0:M-3]
+    r_values = numerator / denominator
+    return E_center, r_values
+
+def r_nonoverlapping(sorted_eigs):
+    """
+    Computes r_nonoverlapping^(2) = (E_{i+4} - E_{i+2}) / (E_{i+2} - E_i)
+    for i = 0 to M-5. Returns E_center = E_{i+2}, and r_values.
+    """
+    M = len(sorted_eigs)
+    if M < 5:
+        return np.array([]), np.array([])
+
+    E_center = sorted_eigs[2:M-2]
+    r_values = (sorted_eigs[4:M] - sorted_eigs[2:M-2]) / (sorted_eigs[2:M-2] - sorted_eigs[0:M-4])
+    return E_center, r_values
 
 def filter_chern(eigs, cvals, cfilter):
     """
@@ -283,7 +312,6 @@ def plot_hexbin_with_quantile_fits(E, r, ax, frac=0.05, gridsize=100,
     tail_frac   : tail quantile fraction (e.g. 0.005 for 0.5%)
     n_center    : number of central bins
     """
-    from statsmodels.nonparametric.smoothers_lowess import lowess
 
     # 1. Hexbin
     hb = ax.hexbin(E, r, gridsize=gridsize,
@@ -340,6 +368,30 @@ def plot_hexbin_with_quantile_fits(E, r, ax, frac=0.05, gridsize=100,
     ax.set_ylabel("Local r")
     # ax.legend(loc="upper right")
 
+def plot_pr_histogram(rvals, ax, label, bins=75):
+    """
+    Plot a normalized histogram of rvals on given Axes,
+    with a vertical dotted line showing the average.
+    """
+    # Histogram
+    ax.hist(rvals, bins=bins, density=True,
+            alpha=0.8, color='skyblue', edgecolor=None)
+
+    # Mean value
+    r_mean = np.mean(rvals)
+    ax.axvline(r_mean, color='red', linestyle=':', linewidth=1.5,
+               label=fr"$\langle r \rangle = {r_mean:.3f}$")
+
+    # Axis setup
+    ax.set_xlim(0, np.max(rvals) * 1.1)
+    ax.set_ylim(0)
+    ax.grid(True, alpha=0.3)
+    ax.set_title(label)
+    ax.set_xlabel(r"$r$")
+    ax.set_ylabel(r"$P(r)$")
+    ax.legend(loc="upper right", fontsize=7)
+
+
 ###############################################################################
 # 4) Main function: 2x2 subplots for four Chern filters
 ###############################################################################
@@ -360,9 +412,10 @@ def main_hexbin_lowess(folder_path, overlay_n_values, frac=0.05, gridsize=100):
     ]
     cfilters = [
         ("All Chern",  None),
-        ("C=+1", 1),
-        ("|C|=1", [-1,1]),
         ("C=0",  0),
+        ("C=+1", 1),
+        ("C=-1", -1),
+        # ("|C|=1", [-1,1]),
     ]
 
     for subdir in subdirs:
@@ -381,6 +434,10 @@ def main_hexbin_lowess(folder_path, overlay_n_values, frac=0.05, gridsize=100):
 
         fig, axes = plt.subplots(2, 2, figsize=(6.8,6))
         axes = axes.ravel()
+
+        ####### Histogram Plot
+        fig2, axes2 = plt.subplots(2, 2, figsize=(6.8, 6))
+        axes2 = axes2.ravel()
         # fig.suptitle(f"N={n_value}: 2D Hexbin + LOWESS (local r)", fontsize=14)
 
         for ax_idx, (label, cfilt) in enumerate(cfilters):
@@ -399,20 +456,31 @@ def main_hexbin_lowess(folder_path, overlay_n_values, frac=0.05, gridsize=100):
             # ax.set_xlabel("E")
             ax.set_xlabel(r"$E$")
             ax.set_ylabel(r"Separation Ratio, $r$")
-            ax.axhline(0.3863, color='red', linestyle='--', label='Poisson Value 0.3863')
-            ax.axhline(0.5996, color='green', linestyle='--', label='GUE Value 0.5996')
+            # ax.axhline(0.3863, color='red', linestyle='--', label='Poisson Value 0.3863')
+            # ax.axhline(0.60266, color='green', linestyle='--', label='GUE Value 0.60266')
+            ax.axhline(1.0980, color='green', linestyle='--', label='GUE Value 1.0980')
+
+            # Plot histogram
+            ax2 = axes2[ax_idx]
+            plot_pr_histogram(rvals, ax2, label)
+            ax2.set_title(label)
+            ax2.set_xlabel(r"$r$")
+            ax2.set_ylabel(r"$P(r)$")
 
 
         plt.tight_layout()
         # plt.show()  # or 
         plt.savefig(f"hexbin_lowess_N{n_value}vQuantNewV3.pdf")
+        fig.savefig(f"hexbin_lowess_N{n_value}vQuantNewV3.pdf")
+        fig2.savefig(f"histogram_Pr_N{n_value}.pdf")
 
 ###############################################################################
 # Example usage
 ###############################################################################
 if __name__ == "__main__":
-    folder_path = "/Users/eddiedeleu/Desktop/FinalData"  # adjust this path as needed
+    folder_path = "/scratch/gpfs/ed5754/iqheFiles/Full_Dataset/FinalData/"  # adjust this path as needed
     overlay_n_values = [64,128,256,512,1024,2048]  # just an example
+    overlay_n_values = [1024]
 
     main_hexbin_lowess(folder_path, overlay_n_values,
                        frac=0.05, gridsize=100)
