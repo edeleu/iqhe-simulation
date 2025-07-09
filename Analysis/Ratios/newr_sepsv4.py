@@ -3,6 +3,7 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 from tqdm import tqdm
+import scipy
 
 # If you want to do LOWESS, you'll need statsmodels:
 # import statsmodels.api as sm
@@ -27,6 +28,28 @@ plt.rcParams.update({
 
 # Configure the font rendering with LaTeX for compatibility
 rc('text.latex', preamble=r'\usepackage{amsmath}')  # Allows using AMS math symbols
+
+def generalized_r(r, b=2):
+    """
+    PDF of the general r-distribution
+    where b is the Wigner beta value.
+    """
+    normconstant = (4/81) * np.pi / np.sqrt(3)
+    numerator = (r + r**2)**b
+    denominator = (1 + r + r**2)**(1 + 3*b/2)
+    return numerator / (normconstant * denominator)
+
+def generalized_folded_r(r, b=2):
+    """
+    folded, normalized PDF of the general r-distribution
+    r here is r_tilda (min-max) from 0 --> 1
+    """
+
+    return generalized_r(r,b) + (1/(r**2))*generalized_r(1/r,b)
+
+def overlay_gue_curve(ax, num_points=1000, label="Reference GUE", color="green", linestyle="--"):
+    r_vals = np.linspace(0.001, 1, num_points)
+    ax.plot(r_vals, generalized_folded_r(r_vals), label=fr'Folded GUE ($\beta=2$)',color=color)
 
 ###############################################################################
 # 1) Local r-values
@@ -130,7 +153,7 @@ def gather_local_r_hexbin(subdir_path, cfilter=None, sign_flip=True):
         if len(E_filtered) < 3:
             continue
         E_sorted = np.sort(E_filtered)
-        E_mid_pos, r_pos = local_r_values(E_sorted)
+        E_mid_pos, r_pos = r_nonoverlapping(E_sorted)
         E_accum.append(E_mid_pos)
         r_accum.append(r_pos)
 
@@ -138,7 +161,7 @@ def gather_local_r_hexbin(subdir_path, cfilter=None, sign_flip=True):
             # Treat negative energies as separate "trial"
             E_neg = -E_sorted
             E_neg_sorted = np.sort(E_neg)
-            E_mid_neg, r_neg = local_r_values(E_neg_sorted)
+            E_mid_neg, r_neg = r_nonoverlapping(E_neg_sorted)
             E_accum.append(E_mid_neg)
             r_accum.append(r_neg)
 
@@ -314,11 +337,15 @@ def plot_hexbin_with_quantile_fits(E, r, ax, frac=0.05, gridsize=100,
     """
 
     # 1. Hexbin
-    hb = ax.hexbin(E, r, gridsize=gridsize,
-                   extent=[E.min(), E.max(), r.min(), r.max()],
-                   cmap="viridis")
-    cb = plt.colorbar(hb, ax=ax)
-    cb.set_label("counts")
+    # hb = ax.hexbin(E, r, gridsize=gridsize,
+    #                extent=[E.min(), E.max(), r.min(), r.max()],
+    #                cmap="viridis")
+
+    # hb = ax.hexbin(E, r, gridsize=gridsize,
+    #                extent=[E.min(), E.max(), 0.75, 1.25],
+    #                cmap="viridis")
+    # cb = ax.figure.colorbar(hb, ax=ax)
+    # cb.set_label("counts")
 
     # 2. LOWESS
     # idx = np.argsort(E)
@@ -334,10 +361,26 @@ def plot_hexbin_with_quantile_fits(E, r, ax, frac=0.05, gridsize=100,
 
     # 3. Quantile-based binning for average and median
     bin_edges = compute_quantile_bin_edges(E, tail_frac=tail_frac, n_center=n_center)
+
+    ## ALTERNATIVE FIXED-BIN SIZE METHOD
+    bin_width = 0.05
+    E_min = E.min()
+    E_max = E.max()
+
+    # Extend bounds to align symmetrically around 0
+    E_left = np.floor((E_min + 0.5 * bin_width) / bin_width) * bin_width
+    E_right = np.ceil((E_max - 0.5 * bin_width) / bin_width) * bin_width
+
+    # Create bins from left to right centered on 0
+    bin_centers = np.arange(E_left, E_right + bin_width, bin_width)
+    bin_edges = bin_centers - 0.5 * bin_width
+    bin_edges = np.append(bin_edges, bin_edges[-1] + bin_width)  # one extra for last right edge
+
     bin_centers = 0.5 * (bin_edges[:-1] + bin_edges[1:])
     digit = np.digitize(E, bin_edges) - 1
 
     r_avg = np.full(len(bin_centers), np.nan)
+    r_trimavg = np.full(len(bin_centers), np.nan)
     r_med = np.full(len(bin_centers), np.nan)
     r_sem = np.full(len(bin_centers), np.nan)
 
@@ -345,6 +388,7 @@ def plot_hexbin_with_quantile_fits(E, r, ax, frac=0.05, gridsize=100,
         mask = digit == i
         if np.any(mask):
             r_avg[i] = np.mean(r[mask])
+            r_trimavg[i] = scipy.stats.trim_mean(r[mask],0.25)
             r_med[i] = np.median(r[mask])
             r_sem[i] = np.std(r[mask], ddof=1) / np.sqrt(len(r[mask]))
 
@@ -353,17 +397,44 @@ def plot_hexbin_with_quantile_fits(E, r, ax, frac=0.05, gridsize=100,
     # ax.plot(bin_centers, r_med, color='cyan',  markersize=2, marker='D', lw=1.5, label="Median")
     # ax.scatter(bin_centers, r_avg, color='white', s=12, marker='o', label="Avg points", zorder=3)
     # ax.scatter(bin_centers, r_med, color='cyan',  s=12, marker='D', label="Median points", zorder=3)
-    ax.plot(bin_centers, r_avg, color='white', marker='.', lw=1.5, label="Average")
+    ax.plot(bin_centers, r_avg, color='gray', marker='.', lw=1.5, label="Average")
+    ax.plot(bin_centers, r_med, color='orange', marker='.', lw=1.5, label="Median")
+    ax.plot(bin_centers, r_trimavg, color='blue', marker='.', lw=1.5, label="Trimmed Mean")
+
+    # Find index of center bin
+    center_idx = np.argmin(np.abs(bin_centers))
+
+    # Retrieve precomputed stats
+    r_mean = r_avg[center_idx]
+    r_trimmed = r_trimavg[center_idx]
+    r_median = r_med[center_idx]
+
+    # Format label text
+    text_str = '\n'.join([
+        fr"$\langle r \rangle = {r_mean:.3f}$",
+        fr"Median $r = {r_median:.3f}$",
+        fr"Trimmed $r = {r_trimmed:.3f}$"
+    ])
+
+    # Plot label in upper left of axis
+    ax.text(0.02, 0.98, text_str,
+            transform=ax.transAxes,
+            va='bottom', ha='right',
+            fontsize=8,
+            bbox=dict(facecolor='white', alpha=0.8, edgecolor='gray'))
+
 
     # ax.errorbar(bin_centers, r_avg, yerr=r_sem,
     #             fmt='o-', color='white', lw=1.5,
     #             ecolor='gray', elinewidth=1.0, capsize=2.5, markersize=2,
     #             label="Avg ± SE", zorder=3)
 
-
     # 5. Format plot
     ax.set_xlim(E.min(), E.max())
     ax.set_ylim(r.min(), r.max())
+
+    ax.set_xlim(-0.2, 0.2)
+    ax.set_ylim(0.9, 1.5)
     ax.set_xlabel("Energy E")
     ax.set_ylabel("Local r")
     # ax.legend(loc="upper right")
@@ -383,6 +454,7 @@ def plot_pr_histogram(rvals, ax, label, bins=75):
                label=fr"$\langle r \rangle = {r_mean:.3f}$")
 
     # Axis setup
+    overlay_gue_curve(ax)
     ax.set_xlim(0, np.max(rvals) * 1.1)
     ax.set_ylim(0)
     ax.grid(True, alpha=0.3)
@@ -468,9 +540,10 @@ def main_hexbin_lowess(folder_path, overlay_n_values, frac=0.05, gridsize=100):
             ax2.set_ylabel(r"$P(r)$")
 
 
-        plt.tight_layout()
+        fig.tight_layout()
+        fig2.tight_layout()
+
         # plt.show()  # or 
-        plt.savefig(f"hexbin_lowess_N{n_value}vQuantNewV3.pdf")
         fig.savefig(f"hexbin_lowess_N{n_value}vQuantNewV3.pdf")
         fig2.savefig(f"histogram_Pr_N{n_value}.pdf")
 
