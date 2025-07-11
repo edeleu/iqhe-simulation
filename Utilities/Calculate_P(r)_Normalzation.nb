@@ -1,0 +1,225 @@
+(* Content-type: application/vnd.wolfram.mathematica *)
+
+(*** Wolfram Notebook File ***)
+(* http://www.wolfram.com/nb *)
+
+(* CreatedBy='Mathematica 13.0' *)
+
+(*CacheID: 234*)
+(* Internal cache information:
+NotebookFileLineBreakTest
+NotebookFileLineBreakTest
+NotebookDataPosition[       158,          7]
+NotebookDataLength[      6507,        217]
+NotebookOptionsPosition[      6028,        200]
+NotebookOutlinePosition[      6424,        216]
+CellTagsIndexPosition[      6381,        213]
+WindowFrame->Normal*)
+
+(* Beginning of Notebook Content *)
+Notebook[{
+
+Cell[CellGroupData[{
+Cell[BoxData[
+ RowBox[{
+  RowBox[{"(*", 
+   RowBox[{"Define", " ", "the", " ", "integrand"}], "*)"}], 
+  "\[IndentingNewLine]", 
+  RowBox[{
+   RowBox[{
+    RowBox[{"integrand", "[", 
+     RowBox[{"r_", ",", "b_"}], "]"}], ":=", 
+    RowBox[{
+     RowBox[{"(", 
+      RowBox[{
+       RowBox[{"(", 
+        RowBox[{"r", "+", 
+         RowBox[{"r", "^", "2"}]}], ")"}], "^", "b"}], ")"}], "/", 
+     RowBox[{"(", 
+      RowBox[{
+       RowBox[{"(", 
+        RowBox[{"1", "+", "r", "+", 
+         RowBox[{"r", "^", "2"}]}], ")"}], "^", 
+       RowBox[{"(", 
+        RowBox[{"1", "+", 
+         RowBox[{
+          RowBox[{"(", 
+           RowBox[{"3", " ", "b"}], ")"}], "/", "2"}]}], ")"}]}], ")"}]}]}], 
+   "\[IndentingNewLine]", "\n", 
+   RowBox[{"(*", 
+    RowBox[{
+     RowBox[{
+     "Symbolically", " ", "evaluate", " ", "the", " ", "integral", " ", 
+      "from", " ", "0", " ", "to", " ", "\[Infinity]", " ", "for", " ", "b"}],
+      "=", 
+     RowBox[{"1", " ", "to", " ", "10"}]}], "*)"}], "\[IndentingNewLine]", 
+   RowBox[{
+    RowBox[{"results", "=", 
+     RowBox[{"Table", "[", 
+      RowBox[{
+       RowBox[{"FullSimplify", "[", 
+        RowBox[{"Integrate", "[", 
+         RowBox[{
+          RowBox[{"integrand", "[", 
+           RowBox[{"r", ",", "b"}], "]"}], ",", 
+          RowBox[{"{", 
+           RowBox[{"r", ",", "0", ",", "\[Infinity]"}], "}"}], ",", 
+          RowBox[{"Assumptions", "->", 
+           RowBox[{
+            RowBox[{"b", "\[Element]", "Integers"}], "&&", 
+            RowBox[{"b", ">", "0"}]}]}]}], "]"}], "]"}], ",", 
+       RowBox[{"{", 
+        RowBox[{"b", ",", "1", ",", "20"}], "}"}]}], "]"}]}], ";"}], 
+   "\[IndentingNewLine]", "\[IndentingNewLine]", 
+   RowBox[{"(*", 
+    RowBox[{
+     RowBox[{
+     "Display", " ", "as", " ", "a", " ", "table", " ", "with", " ", "b"}], 
+     "-", 
+     RowBox[{"values", " ", "and", " ", "exact", " ", "results"}]}], "*)"}], 
+   "\n", 
+   RowBox[{"TableForm", "[", 
+    RowBox[{
+     RowBox[{"Table", "[", 
+      RowBox[{
+       RowBox[{"{", 
+        RowBox[{"b", ",", 
+         RowBox[{"results", "[", 
+          RowBox[{"[", "b", "]"}], "]"}]}], "}"}], ",", 
+       RowBox[{"{", 
+        RowBox[{"b", ",", "1", ",", "20"}], "}"}]}], "]"}], ",", 
+     RowBox[{"TableHeadings", "->", 
+      RowBox[{"{", 
+       RowBox[{"None", ",", 
+        RowBox[{"{", 
+         RowBox[{"\"\<b\>\"", ",", "\"\<Exact Integral Value\>\""}], "}"}]}], 
+       "}"}]}]}], "]"}], "\n"}]}]], "Input",
+ CellChangeTimes->{{3.961237910422386*^9, 3.961237937362123*^9}, {
+  3.96123804099728*^9, 3.961238056241922*^9}},
+ CellLabel->"In[28]:=",ExpressionUUID->"f12d2e41-6d45-4197-8ea3-c62f12a31565"],
+
+Cell[BoxData[
+ TagBox[
+  TagBox[GridBox[{
+     {
+      TagBox["\<\"b\"\>",
+       HoldForm], 
+      TagBox["\<\"Exact Integral Value\"\>",
+       HoldForm]},
+     {"1", 
+      FractionBox["8", "27"]},
+     {"2", 
+      FractionBox[
+       RowBox[{"4", " ", "\[Pi]"}], 
+       RowBox[{"81", " ", 
+        SqrtBox["3"]}]]},
+     {"3", 
+      FractionBox["64", "2187"]},
+     {"4", 
+      FractionBox[
+       RowBox[{"4", " ", "\[Pi]"}], 
+       RowBox[{"729", " ", 
+        SqrtBox["3"]}]]},
+     {"5", 
+      FractionBox["1024", "295245"]},
+     {"6", 
+      FractionBox[
+       RowBox[{"40", " ", "\[Pi]"}], 
+       RowBox[{"59049", " ", 
+        SqrtBox["3"]}]]},
+     {"7", 
+      FractionBox["8192", "18600435"]},
+     {"8", 
+      FractionBox[
+       RowBox[{"140", " ", "\[Pi]"}], 
+       RowBox[{"1594323", " ", 
+        SqrtBox["3"]}]]},
+     {"9", 
+      FractionBox["262144", "4519905705"]},
+     {"10", 
+      FractionBox[
+       RowBox[{"56", " ", "\[Pi]"}], 
+       RowBox[{"4782969", " ", 
+        SqrtBox["3"]}]]},
+     {"11", 
+      FractionBox["2097152", "268482398877"]},
+     {"12", 
+      FractionBox[
+       RowBox[{"616", " ", "\[Pi]"}], 
+       RowBox[{"387420489", " ", 
+        SqrtBox["3"]}]]},
+     {"13", 
+      FractionBox["33554432", "31412440668609"]},
+     {"14", 
+      FractionBox[
+       RowBox[{"2288", " ", "\[Pi]"}], 
+       RowBox[{"10460353203", " ", 
+        SqrtBox["3"]}]]},
+     {"15", 
+      FractionBox["268435456", "1817434067255235"]},
+     {"16", 
+      FractionBox[
+       RowBox[{"2860", " ", "\[Pi]"}], 
+       RowBox[{"94143178827", " ", 
+        SqrtBox["3"]}]]},
+     {"17", 
+      FractionBox["17179869184", "834202236870152865"]},
+     {"18", 
+      FractionBox[
+       RowBox[{"97240", " ", "\[Pi]"}], 
+       RowBox[{"22876792454961", " ", 
+        SqrtBox["3"]}]]},
+     {"19", 
+      FractionBox["137438953472", "47549527501598713305"]},
+     {"20", 
+      FractionBox[
+       RowBox[{"369512", " ", "\[Pi]"}], 
+       RowBox[{"617673396283947", " ", 
+        SqrtBox["3"]}]]}
+    },
+    GridBoxAlignment->{"Columns" -> {{Left}}, "Rows" -> {{Baseline}}},
+    GridBoxDividers->{
+     "Columns" -> {{False}}, "Rows" -> {False, True, {False}, False}},
+    GridBoxSpacings->{"Columns" -> {
+        Offset[0.27999999999999997`], {
+         Offset[2.0999999999999996`]}, 
+        Offset[0.27999999999999997`]}, "Rows" -> {
+        Offset[0.2], {
+         Offset[0.4]}, 
+        Offset[0.2]}}],
+   {None, OutputFormsDump`HeadedColumns}],
+  Function[BoxForm`e$, 
+   TableForm[
+   BoxForm`e$, 
+    TableHeadings -> {None, {"b", "Exact Integral Value"}}]]]], "Output",
+ CellChangeTimes->{3.96123843849146*^9, 3.961238687538252*^9},
+ CellLabel->
+  "Out[30]//TableForm=",ExpressionUUID->"fd2017a7-2abc-447d-85ee-\
+4dae1f079fb6"]
+}, Open  ]]
+},
+WindowSize->{808, 753},
+WindowMargins->{{226, Automatic}, {Automatic, 4}},
+FrontEndVersion->"13.0 for Mac OS X ARM (64-bit) (February 4, 2022)",
+StyleDefinitions->"Default.nb",
+ExpressionUUID->"b61f71e4-2159-4679-8d50-2d0eccfb75e7"
+]
+(* End of Notebook Content *)
+
+(* Internal cache information *)
+(*CellTagsOutline
+CellTagsIndex->{}
+*)
+(*CellTagsIndex
+CellTagsIndex->{}
+*)
+(*NotebookFileOutline
+Notebook[{
+Cell[CellGroupData[{
+Cell[580, 22, 2653, 76, 262, "Input",ExpressionUUID->"f12d2e41-6d45-4197-8ea3-c62f12a31565"],
+Cell[3236, 100, 2776, 97, 564, "Output",ExpressionUUID->"fd2017a7-2abc-447d-85ee-4dae1f079fb6"]
+}, Open  ]]
+}
+]
+*)
+
