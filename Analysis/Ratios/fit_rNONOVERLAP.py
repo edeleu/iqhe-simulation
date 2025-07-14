@@ -169,32 +169,30 @@ def model_cdf(r_grid, beta):
     return cdf_vals / cdf_vals[-1]
 
 def perform_ks_test(r_vals, beta):
-    r_grid = np.linspace(1e-4, 1.0, 1000)
-    model_cdf = model_cdf(r_grid, beta)
-    model_interp = interp1d(r_grid, model_cdf, kind='linear', bounds_error=False, fill_value=(0.0, 1.0))
-    r_vals = np.asarray(r_vals)
+    r_grid = np.linspace(1e-4, np.percentile(r_vals, 99.5)*1.5, 2000)
+    model_cdf_vals = model_cdf(r_grid, beta)
+    model_interp = interp1d(r_grid, model_cdf_vals, kind='linear', bounds_error=False, fill_value=(0.0, 1.0))
     return kstest(r_vals, lambda x: model_interp(np.asarray(x)))
+
 
 def qq_plot(ax, data, beta):
     data = np.sort(np.asarray(data))
     n = len(data)
-    r_grid = np.linspace(1e-4, 1.0, 2000)
+    r_grid = np.linspace(1e-4, np.percentile(data, 99.5)*1.5, 2000)  # extended domain
+
     cdf_vals = model_cdf(r_grid, beta)
     inv_cdf_interp = interp1d(cdf_vals, r_grid, kind='linear', bounds_error=False, fill_value="extrapolate")
 
-    # Uniformly spaced probability levels for decimated scatter
     probs_uniform = (np.arange(1, n + 1) - 0.5) / n
     th_quantiles_uniform = inv_cdf_interp(probs_uniform)
     step = max(1, n // 10000)
     ax.plot(th_quantiles_uniform[::step], data[::step], '.', markersize=3, alpha=0.6, label='Sampled 10k')
 
-    # Quantile-based summary points
     quantile_probs = np.linspace(0.01, 0.99, 200)
     emp_q = np.quantile(data, quantile_probs)
     th_q = inv_cdf_interp(quantile_probs)
     ax.plot(th_q, emp_q, 'o', markersize=2.5, alpha=0.9, label='200 Quantiles')
 
-    # Ideal diagonal
     lims = [0, max(th_q.max(), emp_q.max(), data.max())]
     ax.plot(lims, lims, 'k--', lw=0.8, label='Ideal')
 
@@ -236,13 +234,24 @@ def main_fitr(folder_path, overlay_n_values,energy_window):
         r_values = rvals[mask]
 
         # === Fit beta ===
-        res = minimize_scalar(lambda b: neg_log_likelihood(b, r_values), bounds=(0.1, 6), method='bounded')
+        res = minimize_scalar(lambda b: neg_log_likelihood(b, r_values), bounds=(0.1, 12), method='bounded')
         beta_fit = res.x
 
         # === Plotting ===
         bins = np.linspace(0, 1, 50)
         hist, bin_edges = np.histogram(r_values, bins=bins, density=True)
         bin_centers = 0.5 * (bin_edges[:-1] + bin_edges[1:])
+
+        cutoff = np.percentile(r_values, 99.5)
+        data99 = r_values[r_values <= cutoff]
+        if len(data99) > 1:
+            bins99 = np.linspace(data99.min(), data99.max(), 50)
+            density99, bin_edges = np.histogram(data99, bins=bins99)
+            widths99 = np.diff(bin_edges)
+            bin_centers = bin_edges[:-1] + widths99 / 2
+            hist = density99 / (len(r_values) * widths99)
+            # axs[0,0].scatter(bin_centers, density99, s=4)
+
         pdf_fit = wigner_dyson_pdf(bin_centers, beta_fit)
 
         fig, axs = plt.subplots(2, 2, figsize=(12, 10))
@@ -250,7 +259,7 @@ def main_fitr(folder_path, overlay_n_values,energy_window):
 
         # Linear plot
         axs[0, 0].plot(bin_centers, hist, 'o', label='Data')
-        axs[0, 0].plot(bin_centers, pdf_fit, label=f'Folded Fit ($\\beta={beta_fit:.2f}$)')
+        axs[0, 0].plot(bin_centers, pdf_fit, label=f'Fit ($\\beta={beta_fit:.2f}$)')
         axs[0, 0].set_title("Linear Scale")
         axs[0,0].axvline(r_mean, color='red', linestyle=':', linewidth=1.5,
                label=fr"$\langle r \rangle = {r_mean:.3f}$")
