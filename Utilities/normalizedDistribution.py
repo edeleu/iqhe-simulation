@@ -3,31 +3,34 @@
 import numpy as np
 from scipy.special import gamma
 
-def c_of_b(b):
-    """Returns c(b) such that the distribution has unit mean."""
-    gamma1 = gamma((b + 2) / 2)
-    gamma2 = gamma((b + 1) / 2)
-    return (gamma1 / gamma2)**2
+def norm_coeffs(n,y):
+    """Returns A,B such that the distribution has unit mean and is a proper PDF."""
+    gamma1 = gamma((1+n) / y)
+    gamma2 = gamma((2+n) / y)
 
-def normalized_pdf(s, b):
+    B = (gamma2/gamma1)**(y)
+    A = (y*B**((1+n)/y)) / gamma1
+
+    return A, B
+
+def normalized_pdf(s, n, y):
     """
     PDF of the normalized distribution:
-    f(s; b) = A(b) * s^b * exp(-c(b) * s^2)
-    where A(b) ensures normalization and unit mean.
+    f(s; n, y) = A(n,y) * s^n * exp(-B(n,y) * s^y)
+    where A and B ensure normalization and unit mean.
+
+    s, y >= 0, n >= -1
     """
-    if b <= -1 or np.any(s <= 0):
-        return np.zeros_like(s)
     
-    c = c_of_b(b)
-    A = 2 * c**((b + 1)/2) / gamma((b + 1)/2)
-    return A * s**b * np.exp(-c * s**2)
+    A, B = norm_coeffs(n, y)
+    return A * s**n * np.exp(-B * s**y)
 
-# Test value
-b=1.65
-c = c_of_b(b)
-A = 2 * c**((b + 1)/2) / gamma((b + 1)/2)
+# Test values against known GUE results 
+n=2 # Beta
+y=2 #Exp Decay
+A, B = norm_coeffs(n, y)
 
-print(c)
+print(-B)
 print("expected:", -4/np.pi)
 
 print(A)
