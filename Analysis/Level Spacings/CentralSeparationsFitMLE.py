@@ -34,10 +34,10 @@ color_cycle = plt.rcParams['axes.prop_cycle'].by_key()['color']
 
 # Chern filters
 CHERN_FILTERS = {
-    r'All Chern': None,
+    # r'All Chern': None,
     # r'C = $0$ or $+1$': [0, 1],
     # r'C = $0$ or $-1$': [0, -1],
-    # r'C = $0$': [0],
+    r'C = $0$': [0],
     # r'C = $-1$': [-1],
     # r'C = $+1$': [1],
     # r'$|$C$|$ = 1': [-1, 1],
@@ -380,6 +380,14 @@ def generate_scatter_histograms(all_separations, energy_range, pdf):
             axs[1].legend(fontsize=6)
             axs[1].set_xlim(0.9*centers100.min(), centers100.max()*1.1)
             axs[1].set_ylim(0.9*density100.min(), density100.max()*1.1)
+
+            # import pandas as pd
+            # # Save histogram data to CSV
+            # df_hist = pd.DataFrame({
+            #     "bin_center": centers100,
+            #     "density": density100
+            # })
+            # df_hist.to_csv("P(s)_Chern0.csv", index=False)
 
             # Log-linear
             axs[2].semilogy(centers100, density100, marker='.', linestyle='None', markersize=4,
