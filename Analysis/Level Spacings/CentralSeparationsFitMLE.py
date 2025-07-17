@@ -215,8 +215,10 @@ def hist_pdf(s, *params, fixed=None):
         n, y = fixed['n'], params[0]
     return normalized_pdf(s, n, y)
 
-def neg_log_likelihood(params, s_data, fixed=None):
+
+def neg_log_likelihood(params, s_data, fixed=None, penalty=False):
     """params: array of params to be fit; fixed: dict like {'n': 2} or {'y': 2}"""
+
     if fixed is None:
         n, y = params
     elif 'y' in fixed:
@@ -229,7 +231,15 @@ def neg_log_likelihood(params, s_data, fixed=None):
     pdf_vals = normalized_pdf(s_data, n, y)
     if np.any(pdf_vals <= 0):
         return np.inf
-    return -np.sum(np.log(pdf_vals))
+
+    nll = -np.sum(np.log(pdf_vals))
+    
+    if penalty and fixed is None:
+        # Penalty: encourage n ~ 2 and y ~ 2, discourage sharp peaks
+        reg = 10 * ((n - 2)**2 + (y - 2)**2)
+        return nll + reg
+
+    return nll
 
 def compute_chi_squared(norm_data, model_pdf_func, params=None, num_bins=50):
     counts, bin_edges = np.histogram(norm_data, bins=num_bins)
@@ -266,15 +276,15 @@ def perform_ks_test(norm_all, n=2, y=2):
 def get_all_fits(norm_all):
     # === NLL Fits ===
     result1 = minimize_scalar(lambda n: neg_log_likelihood([n], norm_all, fixed={'y': 2}),
-                              bounds=(0.4, 4), method='bounded')
+                              bounds=(0.25, 5), method='bounded')
     n1, y1 = result1.x, 2
 
     result2 = minimize_scalar(lambda y: neg_log_likelihood([y], norm_all, fixed={'n': 2}),
                               bounds=(0.4, 4), method='bounded')
     n2, y2 = 2, result2.x
 
-    result3 = minimize(lambda p: neg_log_likelihood(p, norm_all),
-                       x0=[2.0, 2.0], bounds=[(0.4, 4), (0.4, 4)])
+    result3 = minimize(lambda p: neg_log_likelihood(p, norm_all,penalty=True),
+                       x0=[2.0, 2.0], bounds=[(0.025, 25), (0.02, 5)])
     n3, y3 = result3.x
 
     fits_nll = [(n1, y1), (n2, y2), (n3, y3)]
@@ -292,9 +302,9 @@ def get_all_hist_fits(norm_all):
     widths = np.diff(bin_edges)
     density = counts / (np.sum(counts) * widths)
 
-    popt1, _ = curve_fit(lambda s, n: hist_pdf(s, n, fixed={'y': 2}), centers, density, bounds=(0.5,4))
-    popt2, _ = curve_fit(lambda s, y: hist_pdf(s, y, fixed={'n': 2}), centers, density, bounds=(0.5,4))
-    popt3, _ = curve_fit(lambda s, n, y: hist_pdf(s, n, y), centers, density, bounds=([0.4, 0.4], [4, 4]))
+    popt1, _ = curve_fit(lambda s, n: hist_pdf(s, n, fixed={'y': 2}), centers, density, bounds=(0.25,5))
+    popt2, _ = curve_fit(lambda s, y: hist_pdf(s, y, fixed={'n': 2}), centers, density, bounds=(0.1,4))
+    popt3, _ = curve_fit(lambda s, n, y: hist_pdf(s, n, y), centers, density, bounds=([0.25, 0.1], [5, 4]))
 
     fits_hist = [(popt1[0], 2), (2, popt2[0]), (popt3[0], popt3[1])]
     print("\n=== Histogram Curve Fits ===")
