@@ -81,9 +81,21 @@ def unfold_eigenvalues_in_folder(folder_path, kde, save_dir):
         # E = np.atleast_1d(E)
         # return np.array([kde.integrate_box_1d(min_energy, e) for e in E]) / idosNorm
 
+    # Step 2: Define parallel version of idos_func
+    # def idos_func(E, n_jobs=-1, batch_size=64):
+    #     """
+    #     Parallelized computation of IDOS(E) = integrate_box_1d(min_E, E) / IDOS_norm
+    #     for arbitrary input array E.
+    #     """
+    #     E = np.atleast_1d(E)
+    #     results = Parallel(n_jobs=n_jobs, batch_size=batch_size)(
+    #         delayed(kde.integrate_box_1d)(min_energy, e) for e in E
+    #     )
+    #     return np.array(results) / idosNorm
+
     energy_grid = np.linspace(min_energy, max_energy, 10000)
     idos_func = build_idos_interp_from_box1d(kde, energy_grid)
-    plot_kde_and_cdf(energy_grid, kde, idos_func)
+    # plot_kde_and_cdf(energy_grid, kde, idos_func)
 
     for fname in tqdm(valid_files, desc=f"Unfolding {os.path.basename(folder_path)}"):
         data = np.load(os.path.join(folder_path, fname))
@@ -94,7 +106,7 @@ def unfold_eigenvalues_in_folder(folder_path, kde, save_dir):
         unfolded = idos_func(eigs) * len(eigs)
 
         save_path = os.path.join(save_dir, f"unfolded_{fname}")
-        np.savez(save_path, unfolded_eigs=unfolded, original_eigs=eigs,chern=data['chern'])
+        np.savez(save_path, unfolded_eigs=unfolded, original_eigs=eigs,chern=data['ChernNumbers'])
 
 def plot_kde_and_cdf(energy_grid, kde, idos, output_path="SaveKDE_CDF_plotParallelized.pdf"):
     """
@@ -139,5 +151,5 @@ if __name__ == "__main__":
     # kde= load_kde_model("/Users/eddiedeleu/Downloads/kde_model.cp.pkl")
 
     # 3. Unfold each folder's spectrum and save
-    save_dir = "/scratch/gpfs/ed5754/iqheFiles/Full_Dataset/FinalData/N=1024_UnfoldedSpedy/"
+    save_dir = "/scratch/gpfs/ed5754/iqheFiles/Full_Dataset/FinalData/N=1024_Unfolded/"
     unfold_eigenvalues_in_folder(base_folder, kde, save_dir)
