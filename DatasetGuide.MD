@@ -28,6 +28,8 @@ The file-sizes for each system-size archive are as follows:
 | 2048                 | 20.62 GB       |
 | **Total**                | **236.34 GB**      |
 
+* "16v1" and "16v2" are two separate datasets for $N_\phi=16$. These may be used to validate analysis methods and get a rough idea about the precision of analysis metrics. 
+
 Within each system-size directory, there are are files for every trial in .npz format (compressed numpy format). Each .npz file represents data for a single trial: its name contains a timestamp when it was saved and a trial number (which is irrelevant).
 
 An example of opening the data from one .npz file is below:
