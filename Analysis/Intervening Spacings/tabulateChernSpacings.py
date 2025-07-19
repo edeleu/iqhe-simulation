@@ -75,6 +75,41 @@ def analyze_all_targets(folder_path, output_csv='chern_gap_stats.csv', hist_dir=
         avg_gap = np.mean(gaps) if gaps else np.nan
         avg_sep = np.mean(seps) if seps else np.nan
 
+        # Quantile-based binning (10% steps) on energy separations
+        if  len(gaps) >0:
+            seps_ = np.array(seps) / np.mean(seps)
+            gaps_ = np.array(gaps)
+            quantiles = np.quantile(seps, np.linspace(0, 1, 11))
+
+            print(f"\\nChern {target}: Quantile Analysis")
+
+            # Create tiled histogram for intervening states by separation quantile
+            fig, axes = plt.subplots(5, 2, figsize=(8, 10), sharex=True, sharey=True)
+            axes = axes.flatten()
+
+            for i in range(10):
+                q_low = quantiles[i]
+                q_high = quantiles[i + 1]
+                mask = (seps_ >= q_low) & (seps_ <= q_high)
+                if np.any(mask):
+                    gap_bin = gaps_[mask]
+                    avg_gap_bin = np.mean(gap_bin)
+                    print(f"  Bin {i+1}: E in [{q_low:.5f}, {q_high:.5f}] → Avg Intervening States: {avg_gap_bin:.5f}")
+
+                    ax = axes[i]
+                    bins = range(0, max(gap_bin)+2)  # bin edges for width=1
+                    ax.hist(gap_bin, bins=bins, edgecolor='black',align='left')
+                    ax.set_title(f"{i+1}: [{q_low:.5f}, {q_high:.5f}]")
+                    ax.set_xlabel("Intervening States")
+                    ax.set_ylabel("Count")
+                else:
+                    axes[i].axis("off")
+
+            plt.tight_layout()
+            plot_path = os.path.join(hist_dir, f'gap_hist_quantiles_chern_{target}.pdf')
+            plt.savefig(plot_path)
+            plt.close()
+
         row = {
             'Chern Number': target,
             'Count': count,
