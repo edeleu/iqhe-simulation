@@ -12,6 +12,8 @@ from scipy.stats import kstest
 from scipy.integrate import cumulative_trapezoid as cumtrapz
 from scipy.interpolate import interp1d
 from scipy.optimize import minimize
+from scipy.stats import ecdf
+from scipy.optimize import differential_evolution
 
 plt.rcParams.update({
     "text.usetex": True,
@@ -34,12 +36,12 @@ color_cycle = plt.rcParams['axes.prop_cycle'].by_key()['color']
 
 # Chern filters
 CHERN_FILTERS = {
-    # r'All Chern': None,
+    r'All Chern': None,
     # r'C = $0$ or $+1$': [0, 1],
     # r'C = $0$ or $-1$': [0, -1],
     r'C = $0$': [0],
-    # r'C = $-1$': [-1],
-    # r'C = $+1$': [1],
+    r'C = $-1$': [-1],
+    r'C = $+1$': [1],
     # r'$|$C$|$ = 1': [-1, 1],
     # r'C $\ne 0$': [-3, -2, -1, 1, 2, 3]
 }
@@ -283,7 +285,7 @@ def get_all_fits(norm_all):
                               bounds=(0.4, 4), method='bounded')
     n2, y2 = 2, result2.x
 
-    result3 = minimize(lambda p: neg_log_likelihood(p, norm_all,penalty=True),
+    result3 = minimize(lambda p: neg_log_likelihood(p, norm_all,penalty=False),
                        x0=[2.0, 2.0], bounds=[(0.025, 25), (0.02, 5)])
     n3, y3 = result3.x
 
@@ -315,6 +317,30 @@ def get_all_hist_fits(norm_all):
 
     return fits_hist, centers, density
 
+
+## CDF FITTING SECTION
+def model_cdf(s_vals, n, y):
+    pdf_vals = normalized_pdf(s_vals, n, y)
+    cdf_vals = cumtrapz(pdf_vals, s_vals, initial=0)
+    return cdf_vals / cdf_vals[-1]
+
+
+def ecdf_fit_loss(params, s_sorted, empirical_cdf):
+    n, y = params
+    if n <= -1 or y <= 0:
+        return np.inf
+    model = model_cdf(s_sorted, n, y)
+    return np.sum((model - empirical_cdf)**2)
+
+
+def ks_fit_loss(params, s_sorted, empirical_cdf):
+    n, y = params
+    if n <= -1 or y <= 0:
+        return np.inf
+    model = model_cdf(s_sorted, n, y)
+    return np.max(np.abs(model - empirical_cdf))
+
+
 def generate_scatter_histograms(all_separations, energy_range, pdf):
     for name, seps in all_separations.items():
         if len(seps) < 2:
@@ -339,39 +365,69 @@ def generate_scatter_histograms(all_separations, energy_range, pdf):
             norm_grp, _ = normalize_separations(grp)
             n_bins = get_dynamic_bin_count(len(norm_grp))
 
+            ##Commented out zoomed-in section
+            # binszoom = np.linspace(0, 0.5, 50)
+            # countszoom, edgeszoom = np.histogram(norm_grp[norm_grp <= 0.5], bins=binszoom)
+            # widthszoom = np.diff(edgeszoom)
+            # centerszoom = edgeszoom[:-1] + widthszoom / 2
+            # densityzoom = countszoom / (len(norm_grp) * widthszoom)
+            # axs[0].scatter(centerszoom, densityzoom, s=4, color=color_cycle[i], label='Data')
 
-            binszoom = np.linspace(0, 0.5, 50)
-            countszoom, edgeszoom = np.histogram(norm_grp[norm_grp <= 0.5], bins=binszoom)
-            widthszoom = np.diff(edgeszoom)
-            centerszoom = edgeszoom[:-1] + widthszoom / 2
-            densityzoom = countszoom / (len(norm_grp) * widthszoom)
-            axs[0].scatter(centerszoom, densityzoom, s=4, color=color_cycle[i], label='Data')
+            # for j, (n, y) in enumerate(fits_nll):
+            #     pdf_vals = normalized_pdf(s_fit, n, y)
+            #     linestyle = '--' if j < 3 else ':'
+            #     label = f"{'NLL' if j < 3 else 'Hist'} Fit {j%3+1}: n={n:.2f}, y={y:.2f}"
+            #     axs[0].plot(s_fit, pdf_vals, linestyle=linestyle, label=label)
 
-            for j, (n, y) in enumerate(fits_nll):
-                pdf_vals = normalized_pdf(s_fit, n, y)
-                linestyle = '--' if j < 3 else ':'
-                label = f"{'NLL' if j < 3 else 'Hist'} Fit {j%3+1}: n={n:.2f}, y={y:.2f}"
-                axs[0].plot(s_fit, pdf_vals, linestyle=linestyle, label=label)
+            # axs[0].set_xlim(0, 0.5)
+            # axs[0].set_ylim(0, 0.75)
+            # axs[0].set_title("Zoomed P(s)", fontsize=10)
+            # try:
+            #     popt, _ = curve_fit(poly_model, centerszoom, densityzoom)
+            #     x_fit = np.linspace(0, 0.5, 300)
+            #     y_fit = poly_model(x_fit, *popt)
+            #     axs[0].plot(x_fit, y_fit, linestyle='--', color='blue', label=fr"$A x^2 + B x^4$" + "\n" + fr"$A={popt[0]:.3f},\ B={popt[1]:.3f}$")
+            # except RuntimeError:
+            #     print("Fit failed for zoomed-in region")
+            # # Fit power-law model
+            # try:
+            #     popt_power, _ = curve_fit(power_law, centerszoom, densityzoom, p0=[1.0, 2.0])
+            #     y_fit_power = power_law(x_fit, *popt_power)
+            #     axs[0].plot(x_fit, y_fit_power, linestyle='--', color='black', label=fr"$A x^{{\beta}}$" + "\n" + fr"$A={popt_power[0]:.2f},\ \beta={popt_power[1]:.2f}$")
+            # except RuntimeError:
+            #     print("Power-law fit failed")
+            # overlay_gue_curve(axs[0])
+            # axs[0].legend(fontsize=6)
+            axs[0].set_title("ECDF vs Model Fits", fontsize=10)
+            axs[0].set_ylim(0, 1.1)
+            axs[0].set_xlabel("s")
+            axs[0].set_ylabel("CDF")
 
-            axs[0].set_xlim(0, 0.5)
-            axs[0].set_ylim(0, 0.75)
-            axs[0].set_title("Zoomed P(s)", fontsize=10)
-            try:
-                popt, _ = curve_fit(poly_model, centerszoom, densityzoom)
-                x_fit = np.linspace(0, 0.5, 300)
-                y_fit = poly_model(x_fit, *popt)
-                axs[0].plot(x_fit, y_fit, linestyle='--', color='blue', label=fr"$A x^2 + B x^4$" + "\n" + fr"$A={popt[0]:.3f},\ B={popt[1]:.3f}$")
-            except RuntimeError:
-                print("Fit failed for zoomed-in region")
-            # Fit power-law model
-            try:
-                popt_power, _ = curve_fit(power_law, centerszoom, densityzoom, p0=[1.0, 2.0])
-                y_fit_power = power_law(x_fit, *popt_power)
-                axs[0].plot(x_fit, y_fit_power, linestyle='--', color='black', label=fr"$A x^{{\beta}}$" + "\n" + fr"$A={popt_power[0]:.2f},\ \beta={popt_power[1]:.2f}$")
-            except RuntimeError:
-                print("Power-law fit failed")
-            overlay_gue_curve(axs[0])
+            s_sorted = np.sort(norm_grp)
+            ecdf_y = np.arange(1, len(s_sorted) + 1) / len(s_sorted)
+
+            axs[0].plot(s_sorted, ecdf_y, label='Empirical ECDF', marker='.', linestyle='None', markersize=3, alpha=0.6)
+
+            result_mse = minimize(lambda p: ecdf_fit_loss(p, s_sorted, ecdf_y), x0=[2.0, 2.0], bounds=[(0.025, 25), (0.02, 5)],method="Powell")
+            # result_ks = minimize(lambda p: ks_fit_loss(p, s_sorted, ecdf_y), x0=[2.0, 2.0], bounds=[(0.025, 25), (0.02, 5)],method="Powell")
+            result_ks = differential_evolution(
+                lambda p: ks_fit_loss(p, s_sorted, ecdf_y),
+                bounds=[(0.025, 25), (0.02, 5)],
+                strategy='best1bin', seed=0, polish=True)
+            
+            s_fit = np.linspace(1e-3, max(s_sorted)*1.1, 400)
+            axs[0].plot(s_fit, model_cdf(s_fit, *result_mse.x), label=f"MSE Fit: n={result_mse.x[0]:.2f}, y={result_mse.x[1]:.2f}", linestyle='--')
+            axs[0].plot(s_fit, model_cdf(s_fit, *result_ks.x), label=f"KS Fit: n={result_ks.x[0]:.2f}, y={result_ks.x[1]:.2f}", linestyle=':')
+
             axs[0].legend(fontsize=6)
+
+            print("ECDF Fits")
+            ks_stat, ks_p = perform_ks_test(s_sorted, *result_mse.x)
+            chi2, dof, red_chi2 = compute_chi_squared(norm_all, normalized_pdf, params=result_mse.x)
+            print(f"Case MSE-FIT | KS={ks_stat:.4f} (p={ks_p:.4f}), Chi²={chi2:.2f}, RedChi²={red_chi2:.2f}")
+            ks_stat, ks_p = perform_ks_test(s_sorted, *result_ks.x)
+            chi2, dof, red_chi2 = compute_chi_squared(norm_all, normalized_pdf, params=result_ks.x)
+            print(f"Case KS-FIT | KS={ks_stat:.4f} (p={ks_p:.4f}), Chi²={chi2:.2f}, RedChi²={red_chi2:.2f}")
 
             # Full linear
             bins100 = np.linspace(norm_grp.min(), norm_grp.max(), n_bins)
