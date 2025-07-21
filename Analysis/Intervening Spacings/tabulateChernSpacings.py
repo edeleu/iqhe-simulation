@@ -77,9 +77,10 @@ def analyze_all_targets(folder_path, output_csv='chern_gap_stats.csv', hist_dir=
 
         # Quantile-based binning (10% steps) on energy separations
         if  len(gaps) >0:
-            seps_ = np.array(seps) / np.mean(seps)
+            seps_ = np.array(seps) 
+            seps_ = seps_ / np.mean(seps)
             gaps_ = np.array(gaps)
-            quantiles = np.quantile(seps, np.linspace(0, 1, 11))
+            quantiles = np.quantile(seps_, np.linspace(0, 1, 11))
 
             print(f"\\nChern {target}: Quantile Analysis")
 
