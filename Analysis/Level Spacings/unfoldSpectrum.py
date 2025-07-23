@@ -36,11 +36,14 @@ def load_eigenvalues(folder_path):
         if not np.isclose(data['SumChernNumbers'], 1, atol=1e-5):
             continue
         eigs = data['eigsPipi']
+        cherns = data['ChernNumbers']
+
+        eigs = eigs[np.isclose(cherns, +1, atol=1e-5)]
         all_eigs.extend(eigs)
     return np.array(all_eigs)
 
 def create_and_save_kde(eigenvalues, save_path):
-    kde = gaussian_kde(eigenvalues, bw_method=0.1)
+    kde = gaussian_kde(eigenvalues) #, bw_method=0.1
     with open(save_path, "wb") as f:
         cloudpickle.dump(kde, f)
     return kde
@@ -67,8 +70,8 @@ def unfold_eigenvalues_in_folder(folder_path, kde, save_dir):
     valid_files = [f for f in os.listdir(folder_path) if f.endswith('.npz')]
     os.makedirs(save_dir, exist_ok=True)
 
-    min_energy = -7
-    max_energy = 7
+    min_energy = -4
+    max_energy = 4
     # idosNorm = quad(kde, min_energy, max_energy)[0]
     # print("IDOS normalization:", idosNorm)
 
@@ -93,9 +96,11 @@ def unfold_eigenvalues_in_folder(folder_path, kde, save_dir):
     #     )
     #     return np.array(results) / idosNorm
 
-    energy_grid = np.linspace(min_energy, max_energy, 10000)
+    energy_grid = np.linspace(min_energy, max_energy, 5000) #10000
     idos_func = build_idos_interp_from_box1d(kde, energy_grid)
     # plot_kde_and_cdf(energy_grid, kde, idos_func)
+    print("0.03 window:", idos_func(-0.03),idos_func(+0.03))
+    print("0.1 window:", idos_func(-0.1),idos_func(+0.1))
 
     for fname in tqdm(valid_files, desc=f"Unfolding {os.path.basename(folder_path)}"):
         data = np.load(os.path.join(folder_path, fname))
@@ -103,10 +108,16 @@ def unfold_eigenvalues_in_folder(folder_path, kde, save_dir):
             continue
 
         eigs = data['eigsPipi']
+        cherns = data['ChernNumbers']
+
+        ## FILTER FOR RELEVANT CHERNS
+        eigs = eigs[np.isclose(cherns, +1, atol=1e-5)]
+        cherns = cherns[np.isclose(cherns, +1, atol=1e-5)]
+
         unfolded = idos_func(eigs) * len(eigs)
 
-        save_path = os.path.join(save_dir, f"unfolded_{fname}")
-        np.savez(save_path, unfolded_eigs=unfolded, original_eigs=eigs,chern=data['ChernNumbers'])
+        save_path = os.path.join(save_dir, f"unfolded1_{fname}")
+        np.savez(save_path, unfolded_eigs=unfolded, original_eigs=eigs,chern=cherns)
 
 def plot_kde_and_cdf(energy_grid, kde, idos, output_path="SaveKDE_CDF_plotParallelized.pdf"):
     """
@@ -137,7 +148,7 @@ def plot_kde_and_cdf(energy_grid, kde, idos, output_path="SaveKDE_CDF_plotParall
 
 # Example usage:
 if __name__ == "__main__":
-    base_folder = "/scratch/gpfs/ed5754/iqheFiles/Full_Dataset/FinalData/N=1024_Mem/"
+    base_folder = "/scratch/network/ed5754/iqheFiles/Data/N=1024_Mem/"
     kde_save_path = "kde_model.cp.pkl"
 
     # 1. Load and concatenate all eigenvalues
@@ -151,5 +162,5 @@ if __name__ == "__main__":
     # kde= load_kde_model("/Users/eddiedeleu/Downloads/kde_model.cp.pkl")
 
     # 3. Unfold each folder's spectrum and save
-    save_dir = "/scratch/gpfs/ed5754/iqheFiles/Full_Dataset/FinalData/N=1024_Unfolded/"
+    save_dir = "/scratch/network/ed5754/iqheFiles/Data/N=1024_UnfoldedChern1/"
     unfold_eigenvalues_in_folder(base_folder, kde, save_dir)
