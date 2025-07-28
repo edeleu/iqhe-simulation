@@ -106,6 +106,20 @@ def r_nonoverlapping(sorted_eigs):
     r_values = (sorted_eigs[4:M] - sorted_eigs[2:M-2]) / (sorted_eigs[2:M-2] - sorted_eigs[0:M-4])
     return E_center, r_values
 
+def r_nonoverlappingFolded(sorted_eigs):
+    """
+    Computes r_nonoverlapping^(2) = (E_{i+4} - E_{i+2}) / (E_{i+2} - E_i)
+    for i = 0 to M-5. Returns E_center = E_{i+2}, and r_values.
+    """
+    M = len(sorted_eigs)
+    if M < 5:
+        return np.array([]), np.array([])
+
+    E_center = sorted_eigs[2:M-2]
+    r_values = (sorted_eigs[4:M] - sorted_eigs[2:M-2]) / (sorted_eigs[2:M-2] - sorted_eigs[0:M-4])
+    folded_r = np.minimum(r_values, 1 / r_values)
+    return E_center, folded_r
+
 def filter_chern(eigs, cvals, cfilter):
     """
     If cfilter is None => return all,
@@ -153,7 +167,7 @@ def gather_local_r_hexbin(subdir_path, cfilter=None, sign_flip=True):
         if len(E_filtered) < 3:
             continue
         E_sorted = np.sort(E_filtered)
-        E_mid_pos, r_pos = r_nonoverlapping(E_sorted)
+        E_mid_pos, r_pos = r_nonoverlappingFolded(E_sorted)
         E_accum.append(E_mid_pos)
         r_accum.append(r_pos)
 
@@ -161,7 +175,7 @@ def gather_local_r_hexbin(subdir_path, cfilter=None, sign_flip=True):
             # Treat negative energies as separate "trial"
             E_neg = -E_sorted
             E_neg_sorted = np.sort(E_neg)
-            E_mid_neg, r_neg = r_nonoverlapping(E_neg_sorted)
+            E_mid_neg, r_neg = r_nonoverlappingFolded(E_neg_sorted)
             E_accum.append(E_mid_neg)
             r_accum.append(r_neg)
 
@@ -337,15 +351,15 @@ def plot_hexbin_with_quantile_fits(E, r, ax, frac=0.05, gridsize=100,
     """
 
     # 1. Hexbin
-    # hb = ax.hexbin(E, r, gridsize=gridsize,
-    #                extent=[E.min(), E.max(), r.min(), r.max()],
-    #                cmap="viridis")
+    hb = ax.hexbin(E, r, gridsize=gridsize,
+                   extent=[E.min(), E.max(), r.min(), r.max()],
+                   cmap="viridis")
 
     # hb = ax.hexbin(E, r, gridsize=gridsize,
     #                extent=[E.min(), E.max(), 0.75, 1.25],
-    #                cmap="viridis")
-    # cb = ax.figure.colorbar(hb, ax=ax)
-    # cb.set_label("counts")
+                #    cmap="viridis")
+    cb = ax.figure.colorbar(hb, ax=ax)
+    cb.set_label("counts")
 
     # 2. LOWESS
     # idx = np.argsort(E)
@@ -368,13 +382,13 @@ def plot_hexbin_with_quantile_fits(E, r, ax, frac=0.05, gridsize=100,
     E_max = E.max()
 
     # Extend bounds to align symmetrically around 0
-    E_left = np.floor((E_min + 0.5 * bin_width) / bin_width) * bin_width
-    E_right = np.ceil((E_max - 0.5 * bin_width) / bin_width) * bin_width
+    # E_left = np.floor((E_min + 0.5 * bin_width) / bin_width) * bin_width
+    # E_right = np.ceil((E_max - 0.5 * bin_width) / bin_width) * bin_width
 
-    # Create bins from left to right centered on 0
-    bin_centers = np.arange(E_left, E_right + bin_width, bin_width)
-    bin_edges = bin_centers - 0.5 * bin_width
-    bin_edges = np.append(bin_edges, bin_edges[-1] + bin_width)  # one extra for last right edge
+    # # Create bins from left to right centered on 0
+    # bin_centers = np.arange(E_left, E_right + bin_width, bin_width)
+    # bin_edges = bin_centers - 0.5 * bin_width
+    # bin_edges = np.append(bin_edges, bin_edges[-1] + bin_width)  # one extra for last right edge
 
     bin_centers = 0.5 * (bin_edges[:-1] + bin_edges[1:])
     digit = np.digitize(E, bin_edges) - 1
@@ -397,9 +411,9 @@ def plot_hexbin_with_quantile_fits(E, r, ax, frac=0.05, gridsize=100,
     # ax.plot(bin_centers, r_med, color='cyan',  markersize=2, marker='D', lw=1.5, label="Median")
     # ax.scatter(bin_centers, r_avg, color='white', s=12, marker='o', label="Avg points", zorder=3)
     # ax.scatter(bin_centers, r_med, color='cyan',  s=12, marker='D', label="Median points", zorder=3)
-    ax.plot(bin_centers, r_avg, color='gray', marker='.', lw=1.5, label="Average")
-    ax.plot(bin_centers, r_med, color='orange', marker='.', lw=1.5, label="Median")
-    ax.plot(bin_centers, r_trimavg, color='blue', marker='.', lw=1.5, label="Trimmed Mean")
+    ax.plot(bin_centers, r_avg, color='white', marker='.', lw=1.5, label="Average")
+    # ax.plot(bin_centers, r_med, color='orange', marker='.', lw=1.5, label="Median")
+    # ax.plot(bin_centers, r_trimavg, color='blue', marker='.', lw=1.5, label="Trimmed Mean")
 
     # Find index of center bin
     center_idx = np.argmin(np.abs(bin_centers))
@@ -431,10 +445,11 @@ def plot_hexbin_with_quantile_fits(E, r, ax, frac=0.05, gridsize=100,
 
     # 5. Format plot
     ax.set_xlim(E.min(), E.max())
-    ax.set_ylim(r.min(), r.max())
+    ax.set_ylim(r.min()*0.9, r.max()*1.1)
+    ax.set_ylim(0,1)
 
-    ax.set_xlim(-0.2, 0.2)
-    ax.set_ylim(0.9, 1.5)
+    # ax.set_xlim(-0.2, 0.2)
+    # ax.set_ylim(0.9, 1.5)
     ax.set_xlabel("Energy E")
     ax.set_ylabel("Local r")
     # ax.legend(loc="upper right")
@@ -508,8 +523,8 @@ def main_hexbin_lowess(folder_path, overlay_n_values, frac=0.05, gridsize=100):
         axes = axes.ravel()
 
         ####### Histogram Plot
-        fig2, axes2 = plt.subplots(2, 2, figsize=(6.8, 6))
-        axes2 = axes2.ravel()
+        # fig2, axes2 = plt.subplots(2, 2, figsize=(6.8, 6))
+        # axes2 = axes2.ravel()
         # fig.suptitle(f"N={n_value}: 2D Hexbin + LOWESS (local r)", fontsize=14)
 
         for ax_idx, (label, cfilt) in enumerate(cfilters):
@@ -530,22 +545,23 @@ def main_hexbin_lowess(folder_path, overlay_n_values, frac=0.05, gridsize=100):
             ax.set_ylabel(r"Separation Ratio, $r$")
             # ax.axhline(0.3863, color='red', linestyle='--', label='Poisson Value 0.3863')
             # ax.axhline(0.60266, color='green', linestyle='--', label='GUE Value 0.60266')
-            ax.axhline(1.0980, color='green', linestyle='--', label='GUE Value 1.0980')
+            # ax.axhline(1.0980, color='green', linestyle='--', label='GUE Value 1.0980')
+            ax.axhline(0.73350881062867947552, color='green', linestyle='--', label='GUE Value')
 
-            # Plot histogram
-            ax2 = axes2[ax_idx]
-            plot_pr_histogram(rvals, ax2, label)
-            ax2.set_title(label)
-            ax2.set_xlabel(r"$r$")
-            ax2.set_ylabel(r"$P(r)$")
+            # # Plot histogram
+            # ax2 = axes2[ax_idx]
+            # plot_pr_histogram(rvals, ax2, label)
+            # ax2.set_title(label)
+            # ax2.set_xlabel(r"$r$")
+            # ax2.set_ylabel(r"$P(r)$")
 
 
         fig.tight_layout()
-        fig2.tight_layout()
+        # fig2.tight_layout()
 
         # plt.show()  # or 
         fig.savefig(f"hexbin_lowess_N{n_value}vQuantNewV3.pdf")
-        fig2.savefig(f"histogram_Pr_N{n_value}.pdf")
+        # fig2.savefig(f"histogram_Pr_N{n_value}.pdf")
 
 ###############################################################################
 # Example usage
