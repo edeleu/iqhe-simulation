@@ -44,11 +44,17 @@ def plotRandomPotential3D(inverse_potential, ax, title=""):
     print(real.shape[1])
     X, Y = np.meshgrid(x, y)
     Z = real
-    surf = ax.plot_surface(X, Y, Z, cmap="magma", edgecolor="none", alpha=0.9)
+    surf = ax.plot_surface(X, Y, Z, cmap="magma", edgecolor="none", alpha=0.9, )
     # ax.plot_surface(X, Y, np.zeros_like(Z), edgecolor='k', linewidth=2, alpha=0, rstride=100, cstride=100,zorder=2)
+
+    ax.zaxis.set_label_coords(-0.13, 0.5)    # manual label shift
+    for t in ax.get_zticklabels():           # manual tick-label shift
+        t.set_horizontalalignment('left')
+        t.set_x(-0.13)
 
     ax.set_xlabel(r"$x$", labelpad=-15)
     ax.set_ylabel(r"$y$", labelpad=-15)
+    ax.set_zlabel(r"$V(\mathbf{r})$", labelpad=-15)
     # ax.set_zlabel("Magnitude of Potential", labelpad=-85)
     # ax.set_xticks([])
     # ax.set_yticks([])
@@ -74,12 +80,12 @@ ax2 = fig.add_subplot(111, projection='3d')
 surf = plotRandomPotential3D(V_2D, ax2)
 
 # Colorbar
-cbar = fig.colorbar(surf, ax= ax2, orientation="vertical",
-                    label="Magnitude of Potential", shrink=0.75, pad=0.05)
+cbar = fig.colorbar(surf, ax= ax2, orientation="vertical",location="left",
+                    label="$V(\mathbf{r})$ (color scale)", shrink=0.7, pad=0.08)
 cbar.ax.tick_params(labelsize=8)
-cbar.ax.yaxis.set_label_position('left')
+cbar.ax.yaxis.set_label_position('right')
 
 plt.tight_layout()
 # plt.show()
 # plt.savefig("testingV2.pdf")
-plt.savefig("Figures/Figure1v1.pdf", bbox_inches='tight')  # Minimize extra space
+plt.savefig("Figures/Figure1v1.3.pdf", bbox_inches='tight')  # Minimize extra space
