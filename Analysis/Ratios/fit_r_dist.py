@@ -79,6 +79,20 @@ def r_nonoverlapping(sorted_eigs):
     r_values = (sorted_eigs[4:M] - sorted_eigs[2:M-2]) / (sorted_eigs[2:M-2] - sorted_eigs[0:M-4])
     return E_center, r_values
 
+def r_nonoverlappingFolded(sorted_eigs):
+    """
+    Computes r_nonoverlapping^(2) = (E_{i+4} - E_{i+2}) / (E_{i+2} - E_i)
+    for i = 0 to M-5. Returns E_center = E_{i+2}, and r_values.
+    """
+    M = len(sorted_eigs)
+    if M < 5:
+        return np.array([]), np.array([])
+
+    E_center = sorted_eigs[2:M-2]
+    r_values = (sorted_eigs[4:M] - sorted_eigs[2:M-2]) / (sorted_eigs[2:M-2] - sorted_eigs[0:M-4])
+    folded_r = np.minimum(r_values, 1 / r_values)
+    return E_center, folded_r
+
 def filter_chern(eigs, cvals, cfilter):
     """
     If cfilter is None => return all,
