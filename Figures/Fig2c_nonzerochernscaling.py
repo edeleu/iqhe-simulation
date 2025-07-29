@@ -104,8 +104,6 @@ def plotChernRelation():
     # Print results with uncertainties
     print(f"Fitted parameters: $A = {A_fit:.4f} ± {A_err:.4f}$, $b = {b_fit:.4f} ± {b_err:.4f}$")
 
-
-
     # Generate smooth curve for fitting
     N_fit = np.linspace(min(num_states_values), max(num_states_values), 100)
     NC_FIT = power_law(N_fit, A_fit, b_fit)
