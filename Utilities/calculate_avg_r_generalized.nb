@@ -10,10 +10,10 @@
 NotebookFileLineBreakTest
 NotebookFileLineBreakTest
 NotebookDataPosition[       158,          7]
-NotebookDataLength[      7174,        221]
-NotebookOptionsPosition[      5815,        188]
-NotebookOutlinePosition[      6212,        204]
-CellTagsIndexPosition[      6169,        201]
+NotebookDataLength[     10792,        324]
+NotebookOptionsPosition[      9023,        285]
+NotebookOutlinePosition[      9419,        301]
+CellTagsIndexPosition[      9376,        298]
 WindowFrame->Normal*)
 
 (* Beginning of Notebook Content *)
@@ -45,14 +45,14 @@ Cell[BoxData[
          RowBox[{
           RowBox[{"(", 
            RowBox[{"3", " ", "b"}], ")"}], "/", "2"}]}], ")"}]}], ")"}]}]}], 
-   "\n", "\[IndentingNewLine]", 
+   "\[IndentingNewLine]", "\[IndentingNewLine]", 
    RowBox[{"(*", 
     RowBox[{
      RowBox[{
      "Symbolically", " ", "evaluate", " ", "the", " ", "integral", " ", 
       "from", " ", "0", " ", "to", " ", "\[Infinity]", " ", "for", " ", "b"}],
       "=", 
-     RowBox[{"1", " ", "to", " ", "10"}]}], "*)"}], "\[IndentingNewLine]", 
+     RowBox[{"1", " ", "to", " ", "10"}]}], "*)"}], "\n", 
    RowBox[{
     RowBox[{"b", "=", "0"}], ";"}], "\[IndentingNewLine]", 
    RowBox[{"Simplify", "[", 
@@ -184,10 +184,107 @@ Cell[BoxData[
 Cell[BoxData["0.6026577908435842`"], "Output",
  CellChangeTimes->{3.9627194332074823`*^9},
  CellLabel->"Out[21]=",ExpressionUUID->"d6f08c54-7839-417f-9b93-49226e75ce5e"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[{
+ RowBox[{
+  RowBox[{
+   RowBox[{"Poissonintegrand", "[", "r_", "]"}], ":=", 
+   RowBox[{
+    RowBox[{"(", 
+     RowBox[{"6", "r"}], ")"}], "/", 
+    RowBox[{
+     RowBox[{"(", 
+      RowBox[{"1", "+", "r"}], ")"}], "^", "4"}]}]}], "\[IndentingNewLine]", 
+  RowBox[{"(*", 
+   RowBox[{
+    RowBox[{"Let", "'"}], "s", " ", "first", " ", "make", " ", "sure", " ", 
+    RowBox[{"it", "'"}], "s", " ", "normalized"}], 
+   "*)"}]}], "\[IndentingNewLine]", 
+ RowBox[{"Simplify", "[", 
+  RowBox[{"Integrate", "[", 
+   RowBox[{
+    RowBox[{"(", 
+     RowBox[{"Poissonintegrand", "[", "r", "]"}], ")"}], ",", 
+    RowBox[{"{", 
+     RowBox[{"r", ",", "0", ",", "\[Infinity]"}], "}"}]}], "]"}], 
+  "]"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{"Simplify", "[", 
+   RowBox[{"Integrate", "[", 
+    RowBox[{
+     RowBox[{"(", 
+      RowBox[{"(", 
+       RowBox[{
+        RowBox[{"Poissonintegrand", "[", "r", "]"}], "+", 
+        RowBox[{
+         RowBox[{"1", "/", 
+          RowBox[{"(", 
+           RowBox[{"r", "^", "2"}], ")"}]}], "*", 
+         RowBox[{"Poissonintegrand", "[", 
+          RowBox[{"1", "/", "r"}], "]"}]}]}], ")"}], ")"}], ",", 
+     RowBox[{"{", 
+      RowBox[{"r", ",", "0", ",", "1"}], "}"}]}], "]"}], "]"}], 
+  "\[IndentingNewLine]", 
+  RowBox[{"(*", 
+   RowBox[{"Then", ",", " ", 
+    RowBox[{
+    "lets", " ", "fold", " ", "it", " ", "and", " ", "find", " ", "the", " ", 
+     
+     RowBox[{"average", "!"}]}]}], "*)"}]}], "\[IndentingNewLine]", 
+ RowBox[{"Simplify", "[", 
+  RowBox[{
+   RowBox[{"Integrate", "[", 
+    RowBox[{
+     RowBox[{"(", 
+      RowBox[{"r", "*", 
+       RowBox[{"(", 
+        RowBox[{
+         RowBox[{"Poissonintegrand", "[", "r", "]"}], "+", 
+         RowBox[{
+          RowBox[{"1", "/", 
+           RowBox[{"(", 
+            RowBox[{"r", "^", "2"}], ")"}]}], "*", 
+          RowBox[{"Poissonintegrand", "[", 
+           RowBox[{"1", "/", "r"}], "]"}]}]}], ")"}]}], ")"}], ",", 
+     RowBox[{"{", 
+      RowBox[{"r", ",", "0", ",", "1"}], "}"}]}], "]"}], "/", 
+   RowBox[{"Integrate", "[", 
+    RowBox[{
+     RowBox[{"(", 
+      RowBox[{"(", 
+       RowBox[{
+        RowBox[{"Poissonintegrand", "[", "r", "]"}], "+", 
+        RowBox[{
+         RowBox[{"1", "/", 
+          RowBox[{"(", 
+           RowBox[{"r", "^", "2"}], ")"}]}], "*", 
+         RowBox[{"Poissonintegrand", "[", 
+          RowBox[{"1", "/", "r"}], "]"}]}]}], ")"}], ")"}], ",", 
+     RowBox[{"{", 
+      RowBox[{"r", ",", "0", ",", "1"}], "}"}]}], "]"}]}], "]"}]}], "Input",
+ CellChangeTimes->{{3.962966215543256*^9, 3.962966355505183*^9}, {
+  3.962966402178581*^9, 3.962966427770899*^9}},
+ CellLabel->"In[4]:=",ExpressionUUID->"cabc5049-2805-4b7a-8342-622208a3993f"],
+
+Cell[BoxData["1"], "Output",
+ CellChangeTimes->{3.962966430872006*^9},
+ CellLabel->"Out[5]=",ExpressionUUID->"cc08de92-f078-4d51-a8ed-a5ed3729f758"],
+
+Cell[BoxData["1"], "Output",
+ CellChangeTimes->{3.9629664309936533`*^9},
+ CellLabel->"Out[6]=",ExpressionUUID->"ca71bf05-44ca-419f-9f35-629a5beb74b7"],
+
+Cell[BoxData[
+ FractionBox["1", "2"]], "Output",
+ CellChangeTimes->{3.962966431177031*^9},
+ CellLabel->"Out[7]=",ExpressionUUID->"adb582fb-afc8-4c80-9c39-0a0037e18bd0"]
 }, Open  ]]
 },
 WindowSize->{808, 855},
-WindowMargins->{{Automatic, 191}, {Automatic, 98}},
+WindowMargins->{{Automatic, 92}, {Automatic, 33}},
 FrontEndVersion->"13.0 for Mac OS X ARM (64-bit) (February 4, 2022)",
 StyleDefinitions->"Default.nb",
 ExpressionUUID->"72397c22-6793-4079-9a4a-b3aeccdc355b"
@@ -217,15 +314,19 @@ Cell[4624, 148, 167, 2, 34, "Output",ExpressionUUID->"02ac57da-0e92-4d41-86c1-1e
 }, Open  ]],
 Cell[CellGroupData[{
 Cell[4828, 155, 282, 8, 53, "Input",ExpressionUUID->"5d2a80d0-8d77-4c6a-b3a1-68d4d2f8b0f8"],
-Cell[5113, 165, 192, 2, 57, "Output",ExpressionUUID->"54a5fcf2-8a64-4d70-86c4-f3e973886edc"]
+Cell[5113, 165, 192, 2, 34, "Output",ExpressionUUID->"54a5fcf2-8a64-4d70-86c4-f3e973886edc"]
 }, Open  ]],
 Cell[CellGroupData[{
 Cell[5342, 172, 285, 9, 53, "Input",ExpressionUUID->"606cf5c2-7088-4da1-9d75-cf892ee2172c"],
 Cell[5630, 183, 169, 2, 34, "Output",ExpressionUUID->"d6f08c54-7839-417f-9b93-49226e75ce5e"]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[5836, 190, 2696, 79, 199, "Input",ExpressionUUID->"cabc5049-2805-4b7a-8342-622208a3993f"],
+Cell[8535, 271, 148, 2, 34, "Output",ExpressionUUID->"cc08de92-f078-4d51-a8ed-a5ed3729f758"],
+Cell[8686, 275, 150, 2, 34, "Output",ExpressionUUID->"ca71bf05-44ca-419f-9f35-629a5beb74b7"],
+Cell[8839, 279, 168, 3, 72, "Output",ExpressionUUID->"adb582fb-afc8-4c80-9c39-0a0037e18bd0"]
 }, Open  ]]
 }
 ]
 *)
-
-(* End of internal cache information *)
 
