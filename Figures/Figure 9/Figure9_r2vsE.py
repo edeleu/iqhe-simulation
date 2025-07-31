@@ -33,20 +33,19 @@ rc("text.latex", preamble=r"\usepackage{amsmath}")
 # ── Local‑r statistic ────────────────────────────────────────────────────────
 ###############################################################################
 
-def local_r_values(sorted_eigs: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
-    """Return energy centers E_mid and folded local‑r values.
-
-    r_i = min(Δ_{i-1}, Δ_i) / max(Δ_{i-1}, Δ_i) for i ∈ [1, M−2].
-    The folded definition maps r ↦ min(r, 1/r) so r ∈ [0, 1].
+def r_nonoverlappingFolded(sorted_eigs):
     """
-    M = sorted_eigs.size
-    if M < 3:
-        return np.empty(0), np.empty(0)
+    Computes r_nonoverlapping^(2) = (E_{i+4} - E_{i+2}) / (E_{i+2} - E_i)
+    for i = 0 to M-5. Returns E_center = E_{i+2}, and r_values.
+    """
+    M = len(sorted_eigs)
+    if M < 5:
+        return np.array([]), np.array([])
 
-    diffs = np.diff(sorted_eigs)
-    r = np.minimum(diffs[:-1], diffs[1:]) / np.maximum(diffs[:-1], diffs[1:])
-    E_mid = sorted_eigs[1:-1]
-    return E_mid, r
+    E_center = sorted_eigs[2:M-2]
+    r_values = (sorted_eigs[4:M] - sorted_eigs[2:M-2]) / (sorted_eigs[2:M-2] - sorted_eigs[0:M-4])
+    folded_r = np.minimum(r_values, 1 / r_values)
+    return E_center, folded_r
 
 ###############################################################################
 # ── Helpers ──────────────────────────────────────────────────────────────────
@@ -94,7 +93,7 @@ def gather_E_r(folder: Path, *, cfilter: Optional[int | List[int]] = None,
             continue
         for sign in (+1, -1) if symmetrize else (+1,):
             eigs_sorted = np.sort(sign * eigs_filt)
-            E_mid, r = local_r_values(eigs_sorted)
+            E_mid, r = r_nonoverlappingFolded(eigs_sorted)
             Es.append(E_mid)
             rs.append(r)
     if not Es:
@@ -105,7 +104,7 @@ def gather_E_r(folder: Path, *, cfilter: Optional[int | List[int]] = None,
 # ── Plotting utilities ───────────────────────────────────────────────────────
 ###############################################################################
 
-def add_quantile_trend(E: np.ndarray, r: np.ndarray, ax: Axes,
+def add_quantile_trend(E: np.ndarray, r: np.ndarray, ax: Axes, cfilter,
                        *, tail_frac: float = 0.0025, n_center: int = 35,
                        color: str = "white") -> None:
     edges = compute_quantile_bin_edges(E, tail_frac=tail_frac, n_center=n_center)
@@ -119,7 +118,10 @@ def add_quantile_trend(E: np.ndarray, r: np.ndarray, ax: Axes,
         markerfacecolor="#FFFFFF",  # Filled APS blue color
         markeredgewidth=.32,
         markeredgecolor="#848484",        # Black outline
+        label = rf"$\langle\tilde{{r}}^{{(2)}}\rangle$"
         ) #label="Quantile Mean"
+    if cfilter==0:
+        ax.legend(loc="lower center", fontsize=6, ncols=3, frameon=False,labelcolor="#FFFFFF")
 
     # ── annotate centre + near-edge bins  ────────────────────────────────────
     idxs = [1, len(centers) // 2, len(centers) - 2]   # left, centre, right
@@ -130,47 +132,57 @@ def add_quantile_trend(E: np.ndarray, r: np.ndarray, ax: Axes,
         if np.isnan(r_mean[idx]):
             continue
         x_pt, y_pt = centers[idx], r_mean[idx]
-        label = rf"$\langle\tilde{{r}}^{{(1)}}\rangle={y_pt:.4f}$"
+        label = rf"$\langle\tilde{{r}}^{{(2)}}\rangle={y_pt:.4f}$"
 
         if idx == mid_idx:
-            # centre bin: place label slightly to the right, no arrow
-            # ax.text(x_pt + 0.02 * span, y_pt,
-            #         label, color='white', fontsize=6,
-            #         ha='left', va='center', zorder=6)
+            if cfilter is None:
+                offset = 10
+            else:
+                offset = 18 #22 for single-column plots. 18 for three-column plots
             ax.annotate(label,
                         xy=(x_pt, y_pt), xycoords='data',
-                        xytext=(0, 14), textcoords='offset points',
+                        xytext=(0, offset), textcoords='offset points',
                         color='white', fontsize=6,
                         ha='center', va='bottom',
                         arrowprops=dict(arrowstyle='->',
                                         color="#FFFFFF", lw=0.8,
-                                        shrinkA=0., shrinkB=0.5),zorder=5)
+                                        shrinkA=0., shrinkB=0.5))
 
         else:
             # left & right bins: label above with a white arrow pointing down
-            x_off = -18 if idx == left_idx else 18   # pixel offset left / right
+            x_off = 0
+            if cfilter==0 or cfilter is None:
+                x_off = 4 if idx == left_idx else -4   # pixel offset left / right
+
             ax.annotate(label,
                         xy=(x_pt, y_pt), xycoords='data',
-                        xytext=(0, -12), textcoords='offset points',
+                        xytext=(x_off, -12), textcoords='offset points',
                         color='white', fontsize=6,
                         ha='center', va='top',
                         arrowprops=dict(arrowstyle='->',
                                         color="#FFFFFF", lw=0.8,
-                                        shrinkA=0., shrinkB=0.5),zorder=6)
+                                        shrinkA=0., shrinkB=0.5))
+    # ── extra label for the global peak (C = 0 only) ─────────────────────────
+    if cfilter == 0 and not np.all(np.isnan(r_mean)):
+        peak_idx = np.nanargmax(r_mean[centers<0])         # index of the peak ⟨r̃⟩ value
+        x_pk, y_pk = centers[centers<0][peak_idx], r_mean[centers<0][peak_idx]
+        label_pk = rf"$\langle\tilde{{r}}^{{(2)}}\rangle={y_pk:.4f}$"
 
-
-    # # ── annotate centre + near-edge bins ─────────────────────────────────────
-    # idxs = [1, len(centers) // 2, len(centers) - 2]   # 2nd, centre, 2nd-last
-    # for idx in idxs:
-    #     if np.isnan(r_mean[idx]):          # skip empty bins
-    #         continue
-    #     ax.text(centers[idx], r_mean[idx] + 0.025,
-    #             rf"$\langle\tilde{{r}}^{{(1)}}\rangle={r_mean[idx]:.4f}$",
-    #             ha="center", va="bottom", color="white", fontsize=6, zorder=6)
-
+        # horizontal arrow from left margin to the peak
+        ax.annotate(label_pk,
+                    xy=(x_pk, y_pk), xycoords='data',          # arrow head
+                    xytext=(-12, 2), textcoords='offset points',  # 10 pt right
+                    ha='right', va='center',
+                    color='white', fontsize=6,
+                    arrowprops=dict(arrowstyle='->',
+                                    color="#FFFFFF", lw=0.8,
+                                    shrinkA=0., shrinkB=0.9))
 
 def hexbin_panel(E: np.ndarray, r: np.ndarray, ax: Axes,
-                 *, gridsize: int = 100, add_cbar: str = "right") -> None:
+                 *, gridsize: int = 100, add_cbar: str = "right", cfilter) -> None:
+    ax.axhline(0.73350881062867947552, color="#2FC5E0", linestyle="--", label="GUE",lw=0.9)
+    ax.axhline(0.5, color="#01AE58", linestyle="--", label="Poisson",lw=0.9)
+
     hb = ax.hexbin(E, r, gridsize=gridsize,
                    extent=[E.min(), E.max(), 0, 1],
                    cmap=cmr.get_sub_cmap(cmr.torch, 0.0, 0.92),linewidths=0.05)
@@ -181,15 +193,13 @@ def hexbin_panel(E: np.ndarray, r: np.ndarray, ax: Axes,
         cb = ax.figure.colorbar(hb, ax=ax, orientation="horizontal",
                                 pad=0.17, fraction=0.08, shrink=0.96)
         cb.set_label("counts")
-    add_quantile_trend(E, r, ax)
+    add_quantile_trend(E, r, ax, cfilter)
     # Reference lines
-    ax.axhline(0.60266, color="#2FC5E0", linestyle="--", label="GUE",lw=0.9)
-    ax.axhline(0.3863, color="#01AE58", linestyle="--", label="Poisson",lw=0.9)
     ax.set_xlabel(r"$E$")
-    ax.set_ylabel(r"$\tilde{r}^{(1)}$")
+    ax.set_ylabel(r"$\tilde{r}^{(2)}$")
     ax.set_ylim(0, 1)
     ax.set_xlim(0.95*E.min(), 0.95*E.max())
-    ax.legend(loc="upper right", fontsize=6, frameon=False,labelcolor="#FFFFFF")
+    # ax.legend(loc="upper right", fontsize=6, frameon=False,labelcolor="#FFFFFF")
 
 ###############################################################################
 # ── Figure generation ───────────────────────────────────────────────────────
@@ -204,7 +214,7 @@ CHERN_SCENARIOS = [
 
 
 def figure_single_panels(base_folder: Path, n_val: int) -> None:
-    out_dir = Path("Figure 7"); out_dir.mkdir(exist_ok=True)
+    out_dir = Path("Figure 9"); out_dir.mkdir(exist_ok=True)
     subdir = base_folder / f"N={n_val}_Mem" if n_val >= 1024 else base_folder / f"N={n_val}"
     for label, cfilt in CHERN_SCENARIOS:
         E, r = gather_E_r(subdir, cfilter=cfilt, symmetrize=True)
@@ -217,15 +227,14 @@ def figure_single_panels(base_folder: Path, n_val: int) -> None:
                     bottom=0.13,
                     top=0.92)
 
-        hexbin_panel(E, r, ax, add_cbar="right")
+        hexbin_panel(E, r, ax, add_cbar="right",cfilter=cfilt)
         ax.set_title(label)
         # fig.tight_layout()
-        fig.savefig(out_dir / f"r_vs_E_{label}.pdf")
+        fig.savefig(out_dir / f"r2_vs_E_{label}.pdf")
         plt.close(fig)
 
-
 def figure_three_column(base_folder: Path, n_val: int) -> None:
-    out_dir = Path("Figure 7"); out_dir.mkdir(exist_ok=True)
+    out_dir = Path("Figure 9"); out_dir.mkdir(exist_ok=True)
     subdir = base_folder / f"N={n_val}_Mem" if n_val >= 1024 else base_folder / f"N={n_val}"
     fig, axes = plt.subplots(1, 3, figsize=(6.8, 3), gridspec_kw={'wspace': 0.06})   # minimal horizontal ga)
     fig.subplots_adjust(left=0.07, right=0.99,
@@ -239,23 +248,19 @@ def figure_three_column(base_folder: Path, n_val: int) -> None:
                     ha="center", va="center")
             ax.set_axis_off()
             continue
-        hexbin_panel(E, r, ax, add_cbar="below")
+        hexbin_panel(E, r, ax, add_cbar="below",cfilter=cfilt)
         ax.set_title(label)
     # fig.tight_layout()
         if ax is not axes[0]:
             ax.set_ylabel("")           # remove label
             ax.tick_params(labelleft=False)
 
-    fig.savefig(out_dir / "r_vs_E_three_column.pdf")
+    fig.savefig(out_dir / "r2_vs_E_three_column.pdf")
     plt.close(fig)
-
-###############################################################################
-# ── CLI entry ───────────────────────────────────────────────────────────────
-###############################################################################
 
 if __name__ == "__main__":
     BASE_PATH = Path("/scratch/gpfs/ed5754/iqheFiles/Full_Dataset/FinalData")
     N_VALUE = 1024  # adjust as needed
 
-    figure_single_panels(BASE_PATH, N_VALUE)
+    # figure_single_panels(BASE_PATH, N_VALUE)
     figure_three_column(BASE_PATH, N_VALUE)
