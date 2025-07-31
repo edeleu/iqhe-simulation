@@ -85,6 +85,8 @@ def gather_E_r(folder: Path, *, cfilter: Optional[int | List[int]] = None,
     Es, rs = [], []
     for npz_path in tqdm(list(folder.glob("*.npz")), desc=f"Loading {folder.name}"):
         data = np.load(npz_path)
+        if not np.isclose(data['SumChernNumbers'], 1, atol=1e-5):
+            continue
         eigs = data["eigsPipi"]
         cherns = data.get("ChernNumbers")
         eigs_filt = filter_by_chern(eigs, cherns, cfilter)
@@ -177,7 +179,7 @@ def hexbin_panel(E: np.ndarray, r: np.ndarray, ax: Axes,
         cb.set_label("counts")
     elif add_cbar == "below":
         cb = ax.figure.colorbar(hb, ax=ax, orientation="horizontal",
-                                pad=0.2, fraction=0.08)
+                                pad=0.17, fraction=0.08, shrink=0.96)
         cb.set_label("counts")
     add_quantile_trend(E, r, ax)
     # Reference lines
@@ -197,6 +199,7 @@ CHERN_SCENARIOS = [
     ("All $C$",  None),   # label, cfilter
     ("$C=0$",   0),
     ("$C=1$",   1),
+    ("$C=-1$", -1),
 ]
 
 
@@ -209,9 +212,14 @@ def figure_single_panels(base_folder: Path, n_val: int) -> None:
             print(f"[warn] no data for {label} in {subdir}")
             continue
         fig, ax = plt.subplots(figsize=(3.4, 3))
+        fig.subplots_adjust(left=0.15,   # more room for y-label
+                    right=0.9,
+                    bottom=0.13,
+                    top=0.92)
+
         hexbin_panel(E, r, ax, add_cbar="right")
         ax.set_title(label)
-        fig.tight_layout()
+        # fig.tight_layout()
         fig.savefig(out_dir / f"r_vs_E_{label}.pdf")
         plt.close(fig)
 
@@ -219,7 +227,11 @@ def figure_single_panels(base_folder: Path, n_val: int) -> None:
 def figure_three_column(base_folder: Path, n_val: int) -> None:
     out_dir = Path("Figure 7"); out_dir.mkdir(exist_ok=True)
     subdir = base_folder / f"N={n_val}_Mem" if n_val >= 1024 else base_folder / f"N={n_val}"
-    fig, axes = plt.subplots(1, 3, figsize=(6.8, 3))  # keep 3" tall
+    fig, axes = plt.subplots(1, 3, figsize=(6.8, 3), gridspec_kw={'wspace': 0.06})   # minimal horizontal ga)
+    fig.subplots_adjust(left=0.07, right=0.99,
+                    bottom=0.1, top=0.92,   # trims vertical whitespace
+                    wspace=0.06)            # already present, kept here
+
     for ax, (label, cfilt) in zip(axes, CHERN_SCENARIOS):
         E, r = gather_E_r(subdir, cfilter=cfilt, symmetrize=True)
         if E.size == 0:
@@ -229,7 +241,11 @@ def figure_three_column(base_folder: Path, n_val: int) -> None:
             continue
         hexbin_panel(E, r, ax, add_cbar="below")
         ax.set_title(label)
-    fig.tight_layout()
+    # fig.tight_layout()
+        if ax is not axes[0]:
+            ax.set_ylabel("")           # remove label
+            ax.tick_params(labelleft=False)
+
     fig.savefig(out_dir / "r_vs_E_three_column.pdf")
     plt.close(fig)
 
