@@ -134,7 +134,7 @@ def plot_Pr(ax: plt.Axes, r_vals: np.ndarray, *, bins: int = 65,
     #   3. χ² / dof  (skip bins with exp = 0)
     mask = exp_counts > 0
     chi2  = np.sum((obs_counts[mask] - exp_counts[mask])**2 / exp_counts[mask])
-    dof   = mask.sum() - 1        # data bins minus 1 fitted parameter (β)
+    dof   = mask.sum() - 1 - 1        # data bins minus 1 fitted parameter (β) - 1
     chi2_red = chi2 / dof
     
     # ── concise stats block --------------------------------------------------
@@ -182,7 +182,7 @@ def make_single_panels(base: Path, n_val: int,window: Tuple[float, float] = (-0.
         fig, ax = plt.subplots(figsize=(3.4, 2.7))
         plot_Pr(ax, r_vals, title=label)
         fig.subplots_adjust(left=0.15, right=0.97, bottom=0.14, top=0.91)
-        fig.savefig(out_dir / f"r_hist_{label}.pdf")
+        fig.savefig(out_dir / f"r2_hist_{label}.pdf")
         plt.close(fig)
 
 
@@ -203,7 +203,7 @@ def make_three_column(base: Path, n_val: int,window: Tuple[float, float] = (-0.0
         ax.xaxis.set_major_formatter(mtick.FormatStrFormatter('%g'))
 
     fig.subplots_adjust(left=0.08, right=0.99, bottom=0.15, top=0.91, wspace=0.05)
-    fig.savefig(out_dir / "r_hist_three_column.pdf")
+    fig.savefig(out_dir / "r2_hist_three_column.pdf")
     plt.close(fig)
 
 if __name__ == "__main__":

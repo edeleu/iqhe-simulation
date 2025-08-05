@@ -142,7 +142,7 @@ def plot_Pr(ax: plt.Axes, r_vals: np.ndarray, *, bins: int = 65,
     #   3. χ² / dof  (skip bins with exp = 0)
     mask = exp_counts > 0
     chi2  = np.sum((obs_counts[mask] - exp_counts[mask])**2 / exp_counts[mask])
-    dof   = mask.sum() - 1        # data bins minus 1 fitted parameter (β)
+    dof   = mask.sum() - 1 - 1        # data bins minus 1 fitted parameter (β) - 1
     chi2_red = chi2 / dof
     
     # ── concise stats block --------------------------------------------------

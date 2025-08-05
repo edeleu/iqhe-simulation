@@ -152,7 +152,7 @@ def make_tail_Ps_figure() -> None:
     #   3. χ² / dof  (skip bins with exp = 0)
     mask = exp_counts > 0
     chi2  = np.sum((obs_counts[mask] - exp_counts[mask])**2 / exp_counts[mask])
-    dof   = mask.sum() - 1        # data bins minus 1 fitted parameter (β)
+    dof   = mask.sum() - 1       # data bins minus 1 
     chi2_red = chi2 / dof
 
     txt = (rf"$\langle s\rangle={mean_s:.4g}$"
