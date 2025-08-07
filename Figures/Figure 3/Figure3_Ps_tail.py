@@ -26,7 +26,7 @@ rc("text.latex", preamble=r"\usepackage{amsmath}")
 # ── constants ───────────────────────────────────────────────────────────────
 BASE = Path("/scratch/gpfs/ed5754/iqheFiles/Full_Dataset/FinalData")
 SUB  = BASE / "N=1024_Mem"     # adjust if path differs
-POS_WIN = (3.9,5.5)
+POS_WIN = (3.79,5.75)
 NEG_WIN = (-POS_WIN[1], -POS_WIN[0])
 OUT_DIR = Path("Figure 3"); OUT_DIR.mkdir(exist_ok=True)
 
@@ -92,7 +92,7 @@ def make_tail_Ps_figure() -> None:
         f"{total_in_ranges} / {eigs.size} = {percentage_in_ranges:.2f}%")
 
     # spacings taken **within each trial** (symmetrised)
-    s_all = load_tail_separations(SUB, POS_WIN, NEG_WIN, symmetrize=True)
+    s_all = load_tail_separations(SUB, POS_WIN, NEG_WIN, symmetrize=False)
     if s_all.size == 0:
         print("[warn] no spacings found in the tail windows"); return
     mean_s = s_all.mean()
@@ -152,7 +152,7 @@ def make_tail_Ps_figure() -> None:
     #   3. χ² / dof  (skip bins with exp = 0)
     mask = exp_counts > 0
     chi2  = np.sum((obs_counts[mask] - exp_counts[mask])**2 / exp_counts[mask])
-    dof   = mask.sum() - 1       # data bins minus 1 
+    dof   = mask.sum() - 1        # data bins minus 1
     chi2_red = chi2 / dof
 
     txt = (rf"$\langle s\rangle={mean_s:.4g}$"

@@ -134,7 +134,7 @@ def plot_Pr(ax: plt.Axes, r_vals: np.ndarray, *, bins: int = 65,
     #   3. χ² / dof  (skip bins with exp = 0)
     mask = exp_counts > 0
     chi2  = np.sum((obs_counts[mask] - exp_counts[mask])**2 / exp_counts[mask])
-    dof   = mask.sum() - 1 - 1        # data bins minus 1 fitted parameter (β) - 1
+    dof   = mask.sum() - 1 - 1        # data bins minus 1 fitted parameter (β)
     chi2_red = chi2 / dof
     
     # ── concise stats block --------------------------------------------------
@@ -178,7 +178,7 @@ def make_single_panels(base: Path, n_val: int,window: Tuple[float, float] = (-0.
     out_dir = Path("Figure 10"); out_dir.mkdir(exist_ok=True)
     sub = base / f"N={n_val}_Mem" if n_val >= 1024 else base / f"N={n_val}"
     for label, cfilt in SCENARIOS:
-        r_vals = load_folder_r(sub, cfilter=cfilt, symmetrize=True,energy_window=window)
+        r_vals = load_folder_r(sub, cfilter=cfilt, symmetrize=False,energy_window=window)
         fig, ax = plt.subplots(figsize=(3.4, 2.7))
         plot_Pr(ax, r_vals, title=label)
         fig.subplots_adjust(left=0.15, right=0.97, bottom=0.14, top=0.91)
@@ -192,7 +192,7 @@ def make_three_column(base: Path, n_val: int,window: Tuple[float, float] = (-0.0
     fig, axes = plt.subplots(1, 3, figsize=(6.8, 2.7), sharey=True,
                              gridspec_kw={"wspace": 0.05})
     for ax, (label, cfilt) in zip(axes, SCENARIOS):
-        r_vals = load_folder_r(sub, cfilter=cfilt, symmetrize=True,energy_window=window)
+        r_vals = load_folder_r(sub, cfilter=cfilt, symmetrize=False,energy_window=window)
         plot_Pr(ax, r_vals, title=label)
         if ax is not axes[0]:
             ax.set_ylabel("")
