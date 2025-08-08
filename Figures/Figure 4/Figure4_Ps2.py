@@ -10,8 +10,8 @@ from tqdm import tqdm
 from matplotlib.ticker import MaxNLocator, LogLocator, NullFormatter
 
 # ── user switches ──────────────────────────────────────────────────────────
-DO_FIT       = False      # set False to disable any fitting
-OVERLAY_CASE = 2         # 1,2,3 or None  (which fitted PDF to draw)
+DO_FIT       = True      # set False to disable any fitting
+OVERLAY_CASE = 3         # 1,2,3 or None  (which fitted PDF to draw)
 
 # ── Matplotlib defaults (APS‑like) ─────────────────────────────────────────
 plt.rcParams.update({
@@ -137,18 +137,18 @@ def perform_fits_de(s_tilde: np.ndarray):
     )
     fits.append((res1.x[0], 2.0))
 
-    # Case 2 – fit y, fix s^n = 2
+    # Case 2 – fit y, fix s^n = 7
     res2 = optimize.differential_evolution(
-        func=lambda x: nll([x[0]], s_tilde, fixed={'n': 2}),
+        func=lambda x: nll([x[0]], s_tilde, fixed={'n': 7}),
         bounds=[(0.2, 5)],
         strategy="best1bin", polish=True
     )
-    fits.append((2.0, res2.x[0]))
+    fits.append((7.0, res2.x[0]))
 
     # Case 3 – fit both n and y
     res3 = optimize.differential_evolution(
         func=lambda p: nll(p, s_tilde),
-        bounds=[(1, 20), (0.15, 3)],
+        bounds=[(0, 20), (0.15, 4)],
         strategy="best1bin", polish=True
     )
     fits.append(tuple(res3.x))
@@ -197,17 +197,18 @@ def panel_plot(ax: plt.Axes, s: np.ndarray, scale: str, ch, setXLabel, setYLabel
 
         # PCTILE BASED METHOD
         limit=100
-        if (ch == 1 or ch==-1 or ch ==0): limit = 99.25 
+        if ch==0: limit=99.5
+        # if (ch == 1 or ch==-1 or ch ==0): limit = 99.25 
         
         lower, upper = np.percentile(s, [0, limit])
-        bins_lin = np.linspace(lower, 4.05, bins)
+        bins_lin = np.linspace(lower, upper, bins)
 
         # Plot histogram without density normalization
         counts, _ = np.histogram(s, bins=bins_lin)
 
         # Normalize the histogram manually
         bin_widths = np.diff(bins_lin)[0]
-        # print(np.sum(counts / (len(s) * bin_widths) * bin_widths))
+        print(np.sum(counts / (len(s) * bin_widths) * bin_widths))
         counts, edges, _ = ax.hist(s, bins=bins_lin, weights=np.ones_like(s) / (len(s) * bin_widths),
                                 color="#d9d9d9", histtype="stepfilled", alpha=0.6)
         ax.hist(s, bins=bins_lin, weights=np.ones_like(s) / (len(s) * bin_widths),
@@ -226,26 +227,27 @@ def panel_plot(ax: plt.Axes, s: np.ndarray, scale: str, ch, setXLabel, setYLabel
         # draw the fitted curve in every panel …
         ax.plot(grid, normalized_pdf(grid, n, y),
                 color=col,alpha=0.8, lw=1.1,
-                label=(r"$P(\tilde{s}^{(2)}) = A\,\tilde{s}^{\alpha}\,"
+                label=(r"$P_2(\tilde{s}) = A\,\tilde{s}^{\alpha}\,"
                      r"e^{-B \tilde{s}^{\gamma}}$"))
                 #label=(r"$P(\tilde{s}) = A\,\tilde{s}^{\alpha}\,"
                 #                    r"e^{-B \tilde{s}^{\gamma}}$"))
         # … but add a legend + stats **only in the linear-linear panel**
         if scale == "linear":
-            ax.legend(frameon=False, fontsize=7, loc="upper right")
+            ax.legend(frameon=False, fontsize=6, handlelength=1.5, loc="upper right")
 
             # stats block just below the legend
             ks_D, ks_p = ks_stat(s, n, y)
             chi2red      = chi2_red(s, n, y)
 
-            stats_txt = (rf"Fit: $\gamma={y:.3f}$" # rf"$\alpha={n:.3f},\;\gamma={y:.3f}$" 
+            stats_txt = (rf"$\alpha={n:.3f},\;\gamma={y:.3f}$" # rf"Fit: $\gamma={y:.3f}$" 
                         "\n" + rf"$KS={ks_D:.3f}$"
                         "\n" + rf"$p={ks_p:.3g}$"
                         "\n" + rf"$\chi_\mathrm{{red}}^2={chi2red:.2f}$")
 
-            ax.text(0.97, 0.77, stats_txt,
+            ax.text(0.97, 0.8, stats_txt,
                     transform=ax.transAxes,
-                    ha="right", va="top", fontsize=7, linespacing=1.8)
+                    ha="right", va="top", fontsize=6, linespacing=1.8)
+            
 
     if setXLabel:
         ax.set_xlabel(r"$\tilde{s}^{(2)}$")
@@ -253,8 +255,12 @@ def panel_plot(ax: plt.Axes, s: np.ndarray, scale: str, ch, setXLabel, setYLabel
     if scale=="linear":
         ax.set_ylabel(r"$P(\tilde{s}^{(2)})$")
         ax.set_xlim(0,np.max(edges)*1.05)
-        ax.set_ylim(0,1.01)
-        # ax.yaxis.set_major_locator(MaxNLocator(4)) # Set maximum 5 major ticks on x-axis
+
+        if DO_FIT:         ## REQUIRED X AND Y SCALING ONLY FOR FITTING!
+            if ch== None or ch == 1:
+                ax.set_ylim(0,np.max(counts)*1.3)
+            if ch==1:
+                ax.set_xlim(0,np.max(edges)*1.2)
 
     if scale=="semilogy":
         ax.set_yscale("log")
@@ -273,11 +279,11 @@ def panel_plot(ax: plt.Axes, s: np.ndarray, scale: str, ch, setXLabel, setYLabel
 
     if scale=="loglog":
         ax.set_xscale("log"); ax.set_yscale("log")
-        ax.set_xlim(0.75*np.min(edges),np.max(edges)*1.2)
+        ax.set_xlim(0.8*np.min(edges),np.max(edges)*1.15)
         ax.set_ylim(0.4*np.min(counts[counts>0]),np.max(counts[counts>0])*1.9)
 
-        ax.xaxis.set_major_locator(LogLocator(base=10.0, subs=(1.0,),
-                                              numticks=6))
+        # ax.xaxis.set_major_locator(LogLocator(base=10.0, subs=(1.0,),
+        #                                       numticks=6))
         ax.yaxis.set_major_locator(LogLocator(base=10.0, subs=(1.0,),
                                               numticks=5))
         
@@ -286,6 +292,19 @@ def panel_plot(ax: plt.Axes, s: np.ndarray, scale: str, ch, setXLabel, setYLabel
         ax.yaxis.set_minor_locator(LogLocator(base=10.0, subs=minor_subs,
                                               numticks=70))
         ax.yaxis.set_minor_formatter(NullFormatter())
+
+        # 1) expand the x-range to the nearest decades so >1 major tick appears
+        dec_min = np.floor(np.log10(s.min()))
+        dec_max = np.ceil (np.log10(s.max()))
+        ax.set_xlim(10**dec_min, np.max(edges)*1.15)
+
+        # 2) explicit log locator (now plenty of room for ticks)
+        major = LogLocator(base=10.0, subs=(1.0,), numticks=int(dec_max-dec_min)+1)
+        minor = LogLocator(base=10.0, subs=np.arange(2,10), numticks=60)
+
+        ax.xaxis.set_major_locator(major)
+        ax.xaxis.set_minor_locator(minor)
+        ax.xaxis.set_minor_formatter(NullFormatter())
 
     if setYLabelAll:
         ax.set_ylabel(r"$P(\tilde{s})$")
@@ -356,14 +375,14 @@ def make_figure():
             f.subplots_adjust(left=leftSize,right=0.97,bottom=0.14,top=0.96)
 
             if sc is not "loglog": # right label
-                ax.text(0.65, 0.865, {"All": r"\textbf{All }\,$\mathbf{C}$",
+                ax.text(0.68, 0.865, {"All": r"\textbf{All }\,$\mathbf{C}$",
                             "C0" : r"$\mathbf{C = 0}$",
                             "C1" : r"$\mathbf{C = +1}$",
                             "Cn1" : r"$\mathbf{C = -1}$"}[lab],
                     transform=ax.transAxes, fontsize=16, fontweight='bold',
                     ha='left', va='top')
             else:   # left label              
-                ax.text(0.08, 0.865, {"All": r"\textbf{All }\,$\mathbf{C}$",
+                ax.text(0.05, 0.865, {"All": r"\textbf{All }\,$\mathbf{C}$",
                             "C0" : r"$\mathbf{C = 0}$",
                             "C1" : r"$\mathbf{C = +1}$",
                             "Cn1" : r"$\mathbf{C = -1}$"}[lab],
