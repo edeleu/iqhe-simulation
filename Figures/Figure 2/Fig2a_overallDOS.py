@@ -20,8 +20,8 @@ plt.rcParams.update({
     "ytick.labelsize": 8,
     "figure.dpi": 300,
     "lines.linewidth": 1,
-    "grid.alpha": 0.3,
-    "axes.grid": True
+    # "grid.alpha": 0.3,
+    # "axes.grid": True
 })
 
 def load_eigenvalues(folder_path):
@@ -47,17 +47,7 @@ def load_eigenvalues(folder_path):
 
 def plot_dos_comparison_final(system_sizes, base_path, output_file="Fig2a.pdf"):
     fig, ax1 = plt.subplots(1, 1, figsize=(3.4, 3))
-    ratios = {}
-    cmap = plt.cm.turbo
-    color_norm = mcolors.Normalize(vmin=0, vmax=len(system_sizes)-1)
-    colors = ["#332288", "#117733", "#88CCEE",
-    # "#4575b4",  # indigo
-    # "#1fa187",  # teal
-    # "#65b300",  # olive green
-    "#E69F00",  # orange
-    "#d73027",  # vermillion
-    "#740606"]  # black]
-
+    colors = ["#332288", "#117733", "#88CCEE", "#E69F00", "#d73027", "#D479D1"]  
 
     for idx, n in enumerate(system_sizes):
         if n==1024 or n==2048:
@@ -80,18 +70,17 @@ def plot_dos_comparison_final(system_sizes, base_path, output_file="Fig2a.pdf"):
             print(f"No valid data found for N={n}, skipping")
             continue
             
-        # color = cmap(color_norm(idx))
-        # Plot KDEs
-        label = f"N={n}"
+        label = rf"$N_\phi={n}$"
         color=colors[idx]
 
-        x = np.linspace(all_eigs.min(), all_eigs.max(), 1000)
+        x = np.linspace(all_eigs.min(), all_eigs.max(), 100)
         kde_full = stats.gaussian_kde(all_eigs,bw_method=0.1)
-        ax1.plot(x, kde_full(x), color=color, label=label, alpha=0.8)
+        ax1.plot(x, kde_full(x), color=color, label=label, alpha=0.8, lw=0.75)
 
         # Compute KDE for nonzero eigenvalues
+        x = np.linspace(nonzero_chern_eigs.min(), nonzero_chern_eigs.max(), 60)
         kde_subset = stats.gaussian_kde(nonzero_chern_eigs,bw_method=0.1)
-        ax1.plot(x, kde_subset(x) * (len(nonzero_chern_eigs) / len(all_eigs)), linestyle='--', color=color, alpha=0.8)
+        ax1.plot(x, kde_subset(x) * (len(nonzero_chern_eigs) / len(all_eigs)), linestyle='--', color=color, alpha=0.8,lw=0.75)
 
         # Calculate ratio of maxima
 
@@ -106,8 +95,27 @@ def plot_dos_comparison_final(system_sizes, base_path, output_file="Fig2a.pdf"):
     # ax1.set_title("Full Eigenvalue Spectrum")
     ax1.set_xlabel(r"$E$")
     ax1.set_ylabel(r"Normalized DOS $\rho(E)$")
-    ax1.legend(loc='upper right', frameon=False)
-        
+    ax1.legend(loc='upper right', frameon=False, handlelength=1.2)
+
+    ax1.annotate(r"$C\ne0$ states",
+                        xy=(0, 0.1), xycoords='data',
+                        xytext=(-40, 0), textcoords='offset points',
+                        color='black', fontsize=8,
+                        ha='right', va='center',
+                        arrowprops=dict(arrowstyle='->',
+                                        color="#000000", lw=0.8,
+                                        shrinkA=0., shrinkB=0.75))
+    
+    ax1.annotate(r"All states",
+                    xy=(0, 0.2533), xycoords='data',
+                    xytext=(-35, 0), textcoords='offset points',
+                    color='black', fontsize=8,
+                    ha='right', va='top',
+                    arrowprops=dict(arrowstyle='->',
+                                    color="#000000", lw=0.8,
+                                    shrinkA=0., shrinkB=1))
+    ax1.set_ylim(-0.005,0.265)
+
     # Final adjustments
     plt.tight_layout()
     plt.savefig(output_file)
@@ -115,5 +123,6 @@ def plot_dos_comparison_final(system_sizes, base_path, output_file="Fig2a.pdf"):
 
 
 system_sizes = [64,128, 256, 512, 1024, 2048]
+system_sizes = [1024]
 base_path = "/scratch/gpfs/ed5754/iqheFiles/Full_Dataset/FinalData/"
 plot_dos_comparison_final(system_sizes, base_path)

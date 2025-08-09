@@ -3,7 +3,6 @@ import matplotlib.pyplot as plt
 import os
 from scipy import stats
 from tqdm import tqdm
-from matplotlib.backends.backend_pdf import PdfPages
 
 # Plot settings (same as before)
 plt.rcParams.update({
@@ -17,8 +16,8 @@ plt.rcParams.update({
     "ytick.labelsize": 8,
     "figure.dpi": 300,
     "lines.linewidth": 1,
-    "grid.alpha": 0.3,
-    "axes.grid": True
+    # "grid.alpha": 0.3,
+    # "axes.grid": True
 })
 
 def load_eigenvalues(folder_path):
@@ -84,44 +83,41 @@ def plot_dos_pdf(system_sizes, base_path, n_bins=100, output_pdf="DOS_per_system
     x_full = np.linspace(x_min_full, x_max_full, 1000)
     
     # Compute histogram for full eigenvalues
-    ax.hist(all_eigs, bins=n_bins, density=True, alpha=0.5, color="#d73027")
+    ax.hist(all_eigs, bins=n_bins, density=True, alpha=0.5, color="#d73027",histtype='stepfilled')
+    ax.hist(all_eigs, bins=n_bins, density=True, color="k", histtype="step")
     
     density, bin_edges = np.histogram(all_eigs, bins=n_bins, density=True)
     widths = np.diff(bin_edges)
     bin_centers = bin_edges[:-1] + widths / 2
-    plt.plot(
-        bin_centers, density,
-        marker='o',
-        linestyle='none',          # No lines connecting points
-        markersize=4.5,
-        markerfacecolor="#d73027",  # Filled APS blue color
-        markeredgewidth=.6,
-        markeredgecolor="#711a15",        # Black outline
-        # label=r"Mean $N_{C\ne0}$"
-    )
+    # plt.plot(
+    #     bin_centers, density,
+    #     marker='o',
+    #     linestyle='none',          # No lines connecting points
+    #     markersize=4.5,
+    #     markerfacecolor="#d73027",  # Filled APS blue color
+    #     markeredgewidth=.6,
+    #     markeredgecolor="#711a15",        # Black outline
+    #     # label=r"Mean $N_{C\ne0}$"
+    # )
 
 
     # Compute KDE for full eigenvalues
     kde_full = stats.gaussian_kde(all_eigs,bw_method=0.1) # bw_method=0.2
     y_full = kde_full(x_full)
-    ax.plot(x_full, y_full, 'k-', lw=1, label="KDE Fit",alpha=0.8)
+    ax.plot(x_full, y_full, color="#d73027", lw=1, label="KDE Fit",alpha=0.8)
     
     # Compute FWHM for full spectrum
     fwhm_full, left_full, right_full, half_full = compute_fwhm(x_full, y_full)
     # --- full spectrum FWHM ---
-    ax.annotate('', xy=(right_full, half_full), xytext=(left_full, half_full),
-                arrowprops=dict(arrowstyle='<->', lw=0.8, color='k'))
+    ax.annotate(
+        '', xy=(right_full, half_full), xytext=(left_full, half_full),
+        arrowprops= dict(shrinkA=0, shrinkB=0, arrowstyle='<->,head_length=0.3,head_width=0.15', lw=0.8, color='black', mutation_scale=6))
     # ax.text((left_full + right_full)/2, half_full*1.05,
             # fr"$\Delta E_\mathrm{{FWHM}}={fwhm_full:.3f}$\n[{left_full:.2f},{right_full:.2f}]",
             # ha='center', va='bottom', fontsize=8)
-    ax.text(
-        (left_full + right_full)/2,
-        half_full*1.05,
-        r"$\Delta E_{{\mathrm{{FWHM}}}} = {fwhm_full:.3f}$"      # first line (math)
-        r"\\[2pt]"                                                # LaTeX line-break + 2 pt space
-        r"$[{left_full:.2f},\,{right_full:.2f}]$",               # second line (math)
-        ha='center', va='bottom', fontsize=8
-    )
+
+    # ax.text(right_full + 0.1, half_full, rf"$\Delta E_{{\mathrm{{FWHM}}}} = {fwhm_full:.2f}$", ha='left', va='center', fontsize=8)
+    # ax.text(right_full + 0.15+0.01, half_full-0.02, rf"$[{left_full:.2f},\,{right_full:.2f}]$", ha='left', va='center', fontsize=8)
 
     # Define a common x-axis range for nonzero chern eigenvalues
     x_min_nz = nonzero_chern_eigs.min()
@@ -131,49 +127,72 @@ def plot_dos_pdf(system_sizes, base_path, n_bins=100, output_pdf="DOS_per_system
     # Compute histogram for nonzero chern eigenvalues
     counts_nz, bin_edges = np.histogram(nonzero_chern_eigs, bins=n_bins, density=True)
     bin_width = bin_edges[1] - bin_edges[0]
-    ax.hist(nonzero_chern_eigs, bins=n_bins, weights=np.ones_like(nonzero_chern_eigs) / (len(all_eigs)*bin_width), alpha=0.3,color="#d73027")
+    ax.hist(nonzero_chern_eigs, bins=n_bins, weights=np.ones_like(nonzero_chern_eigs) / (len(all_eigs)*bin_width), alpha=0.3,color="#d73027",histtype='stepfilled')
     
     # Compute KDE for nonzero chern eigenvalues
     kde_nz = stats.gaussian_kde(nonzero_chern_eigs,bw_method=0.1) # bw_method=0.2
     y_nz = kde_nz(x_nz) * (len(nonzero_chern_eigs) / len(all_eigs))
-    ax.plot(x_nz, y_nz, 'k--', lw=1, label="KDE Fit",alpha=0.8)
+    ax.plot(x_nz, y_nz, color="#d73027", linestyle="dashed", lw=1, label="KDE Fit",alpha=0.8)
     
     # Compute FWHM for nonzero spectrum
     fwhm_nz,   left_nz,   right_nz,   half_nz   = compute_fwhm(x_nz,   y_nz)
 
     # --- C≠0 spectrum FWHM 
-    ax.annotate('', xy=(right_nz,  half_nz), xytext=(left_nz,  half_nz),
-                arrowprops=dict(arrowstyle='<->', lw=0.8, color='gray'))
-    # --- full-spectrum FWHM label (two-line block) ---
-    ax.text(
-        (left_full + right_full)/2,
-        half_full*1.05,
-        r"$\Delta E_{{\mathrm{{FWHM}}}} = {fwhm_full:.3f}$"      # first line (math)
-        r"\\[2pt]"                                                # LaTeX line-break + 2 pt space
-        r"$[{left_full:.2f},\,{right_full:.2f}]$",               # second line (math)
-        ha='center', va='bottom', fontsize=8
-    )
+    ax.annotate(
+    '', xy=(right_nz, half_nz), xytext=(left_nz, half_nz),
+    arrowprops=dict(arrowstyle='<->,head_length=0.3,head_width=0.15', lw=0.8, color='gray', shrinkA=0, shrinkB=0,mutation_scale=5)) # dict(arrowstyle='<->', lw=0.8, color='gray', shrinkA=0, shrinkB=0, mutation_scale=5)
+
+    # ax.text(right_nz + 0.15, half_nz,
+    # rf"$\Delta E_{{\mathrm{{FWHM}}}}^{{(C\neq 0)}} = {fwhm_nz:.3f}$",
+    # ha='left', va='center', fontsize=8, color='gray')
+    # ax.text(right_nz + 0.15, half_nz-0.02,
+    # rf"$[{left_nz:.2f},\,{right_nz:.2f}]$",
+    # ha='left', va='center', fontsize=8, color='gray')
+    
+    y_arrow = y_full.max()*1.04          # slightly above the KDE
+    # ax.annotate(
+    #     '', xy=(0.03,  y_arrow), xytext=(-0.03, y_arrow),
+    #     arrowprops=dict(arrowstyle='-', lw=0.5, color='blue',
+    #                     shrinkA=0, shrinkB=0, mutation_scale=6)
+    # )
 
 
-    y_arrow = y_full.max()*1.05            # height just above the DOS curve
-    ax.annotate('', xy=(0.03, y_arrow), xytext=(-0.03, y_arrow),
-                arrowprops=dict(arrowstyle='<->', lw=0.8, color='blue'))
-    ax.text(
-    (left_nz + right_nz)/2,
-    half_nz*0.95,
-    rf"$\Delta E_{{\mathrm{{FWHM}}}}^{{C\neq 0}} = {fwhm_nz:.3f}$"
-    r"\\[2pt]"
-    rf"$[{left_nz:.2f},\,{right_nz:.2f}]$",
-    ha='center', va='bottom', fontsize=8, color='gray'
-    )
+    ax.vlines([-0.03, 0.03], ymin=0, ymax=[y_arrow, y_arrow], 
+            colors='blue', linestyles='dotted',lw=0.5)
+    # ax.text(0.55, y_arrow, r"$|E|<0.03$", ha='left', va='bottom',
+    #     fontsize=8, color='blue')
 
 
-    # ax.vlines([-0.03, 0.03], ymin=0, ymax=[0.23, 0.23], 
-    #         colors='blue', linestyles='dotted', label="Central Window")
+    ax.text(0.05, 0.865, r"$N_\phi = 1024$",
+        transform=ax.transAxes, fontsize=12, fontweight='bold',
+        ha='left', va='top')
+
+
+    # --- mini “legend” in upper-right ------------------------------------------
+    x0, y0 = 0.98, 0.96           # anchor (axes-fraction coords)
+
+    ax.text(x0, y0,
+            r"$|E|\le 0.03$",        # line 1 – blue
+            transform=ax.transAxes,
+            ha='right', va='top', fontsize=8, color='blue')
+
+    ax.text(x0, y0-0.07,
+            rf"$\Delta E_{{\mathrm{{FWHM}}}} = {fwhm_full:.3f}$",    # line 2 – black
+            transform=ax.transAxes,
+            ha='right', va='top', fontsize=8)
+
+    ax.text(x0, y0-0.14,
+            rf"$\Delta E_{{\mathrm{{FWHM}}}}^{{(C\neq 0)}} = {fwhm_nz:.3f}$",  # line 3 – gray
+            transform=ax.transAxes,
+            ha='right', va='top', fontsize=8, color='gray')
+    # ---------------------------------------------------------------------------
+
     ax.set_xlabel(r"$E$")
     ax.set_ylabel(r"Normalized DOS $\rho(E)$")
-    ax.legend()
-    
+    #ax.legend()
+    ax.set_xlim(-5.5,5.5)
+    ax.set_ylim(0,0.265)
+
     fig.tight_layout()
     plt.savefig(output_pdf)
 
