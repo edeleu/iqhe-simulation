@@ -1,5 +1,7 @@
 Chern Numbers in the Lowest Landau Level Dataset Guide:
 
+RAW DATA
+
 This dataset is around ~250GB. The dataset is compressed in segments: the directory for each system-size is compressed as a separate archive, for efficiency. Tar + zstd compression is used: the archives "N=128.tar.zst" must thus be decompressed.
 
 The following command may be used for decompression:
@@ -86,3 +88,69 @@ def constructPotential(size, mean=0, stdev=1):
 
     return V/np.sqrt(NUM_STATES)
 ```
+
+Processed Data
+
+The dataset also exists in a pre-processed form to simplify the loading process which becomes cumbersome with a high number of trials and individual .npz files. Each system-size of the dataset has been pre-processed into .H5 format with GZIP compression which is compatible with a wide variety of languages (Python, Mathematica, Matlab, Julia, etc). This format allows for specific parts of the dataset to be efficiently and quickly be transferred to memory for simple processing.
+
+The structure of the file for each system-size is as follows:
+```
+/filenames            [num_trials]                                                          dtype=string
+/PotentialMatrix      [num_trials, POTENTIAL_MATRIX_SIZE, POTENTIAL_MATRIX_SIZE]            dtype=complex128
+/ChernNumbers         [num_trials, $N_\phi$]                                                dtype=int64
+/SumChernNumbers      [num_trials]                                                          dtype=float64
+/eigs00               [num_trials, $N_\phi$]                                                dtype=float64
+/eigs0pi              [num_trials, $N_\phi$]                                                dtype=float64
+/eigsPi0              [num_trials, $N_\phi$]                                                dtype=float64
+/eigsPipi             [num_trials, $N_\phi$]                                                dtype=float64
+```
+
+Iterating through the trials of data in Python may look like the following: 
+
+    import h5py
+    from tqdm import tqdm
+
+    file = "N=1024_GZIP.h5"
+    with h5py.File(file, "r") as f:
+        print(list(f.keys()))   #list available datasets
+
+        # Access og filenames
+        filenames = f["filenames"][:]
+        num_trials = len(filenames)
+        print(num_trials) # number of trials total
+
+        #Next, load desired datasets to memory!
+        total_eigsPiPi = f["eigsPipi"][:]  # shape (n_trials, n_eigs)
+        total_chernNumbers = f["ChernNumbers"][:]  # shape (n_trials, n_eigs)
+        total_sumChernNumbers = f["SumChernNumbers"][:]  # shape (n_trials,)
+        # total_potentials = f["PotentialMatrix"]  # shape (n_trials, L, L)
+
+        # Iterate through trials
+        for i in tqdm(range(num_trials)):
+            if total_sumChernNumbers[i] != 1:
+                continue
+
+            eigs = total_eigsPiPi[i]
+            cherns = total_chernNumbers[i]
+
+            # process eigs, cherns, whatever...
+
+Loading the data in Mathematica may look like...
+
+    (* list datasets *)
+    Import["N=1024.h5", "Datasets"]
+
+    (* trial count *)
+    filenames = Import["N=1024.h5", {"Datasets", "filenames"}]
+    numTrials = Length[filenames]
+
+    (* load eigs for trial 5 *)
+    Import["N=1024.h5", {"Datasets", "eigsPipi", 5}]
+
+    (*Iterate through trials*)
+    allTrialEigs = Import["N=1024.h5", {"Datasets", "eigsPipi"}]
+
+As potential matrix data takes up significant amounts of storage, there is also a version of the dataset further processed into .CSV files. Each is organized into several columns:
+Trial # | eigs00| eigsPi0 | eigs0Pi | eigsPiPi | chern
+
+Thus, if there are 1,024 eigenvalues in a given trial, it will occupy 1,024 rows. There is another even further processed .CSV that only contains energy values where the condition $|E|< 0.25$ is satisfied by at least one of the four boundary conditions.
